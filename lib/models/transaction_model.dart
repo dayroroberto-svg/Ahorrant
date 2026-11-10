@@ -19,6 +19,29 @@ class Transaction {
     this.synced = false,
   });
 
+  // Copiar la transaccion cambiando solo los campos indicados
+  Transaction copyWith({
+    int? id,
+    double? amount,
+    DateTime? date,
+    String? type,
+    String? category,
+    String? origin,
+    String? description,
+    bool? synced,
+  }) {
+    return Transaction(
+      id: id ?? this.id,
+      amount: amount ?? this.amount,
+      date: date ?? this.date,
+      type: type ?? this.type,
+      category: category ?? this.category,
+      origin: origin ?? this.origin,
+      description: description ?? this.description,
+      synced: synced ?? this.synced,
+    );
+  }
+
   // Convertir a Map para guardar en SQLite
   Map<String, dynamic> toMap() {
     return {
