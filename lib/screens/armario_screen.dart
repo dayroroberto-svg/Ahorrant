@@ -1,5 +1,6 @@
-
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../theme/app_theme.dart';
 
 class ArmarioScreen extends StatelessWidget {
   const ArmarioScreen({super.key});
@@ -8,38 +9,70 @@ class ArmarioScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Armario'),
+        title: Text(
+          'Tienda del Armario',
+          style: GoogleFonts.fredoka(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: AppColors.darkBlue,
+          ),
+        ),
         automaticallyImplyLeading: false,
       ),
-      body: Center(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(
-              Icons.shopping_bag,
-              size: 80,
-              color: Colors.brown,
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.softYellow,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.yellow, width: 2),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.stars_rounded, color: AppColors.darkBlue, size: 32),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Personaliza tu Mascota',
+                          style: GoogleFonts.fredoka(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkBlue,
+                          ),
+                        ),
+                        Text(
+                          'Canjea tus Hormigasoles por accesorios exclusivos.',
+                          style: GoogleFonts.fredoka(
+                            fontSize: 12.5,
+                            color: AppColors.textDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Tienda Virtual',
-              style: TextStyle(
-                fontSize: 24,
+            const SizedBox(height: 24),
+            Text(
+              'Artículos Disponibles',
+              style: GoogleFonts.fredoka(
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: AppColors.darkBlue,
               ),
             ),
-            const SizedBox(height: 10),
-            const Text(
-              'Personaliza a tu mascota con accesorios',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 40),
-            _buildArticulo('Sombrero de explorador', 50, Icons.explore),
-            _buildArticulo('Mochila aventurera', 80, Icons.backpack),
-            _buildArticulo('Gafas de sol', 40, Icons.visibility),
+            const SizedBox(height: 12),
+            _buildArticulo('Sombrero de explorador', 50, Icons.explore_rounded),
+            _buildArticulo('Mochila aventurera', 80, Icons.backpack_rounded),
+            _buildArticulo('Gafas de sol', 40, Icons.wb_sunny_rounded),
           ],
         ),
       ),
@@ -47,32 +80,72 @@ class ArmarioScreen extends StatelessWidget {
   }
 
   Widget _buildArticulo(String nombre, int precio, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.brown[100],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: Colors.brown),
-            const SizedBox(width: 10),
-            Column(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.softTeal, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.teal.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.softCyan,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, size: 26, color: AppColors.teal),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   nombre,
-                  style: const TextStyle(
+                  style: GoogleFonts.fredoka(
                     fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: AppColors.textDark,
                   ),
                 ),
-                Text('$precio HS'),
+                const SizedBox(height: 2),
+                Text(
+                  '$precio Hormigasoles',
+                  style: GoogleFonts.fredoka(
+                    fontSize: 13,
+                    color: AppColors.teal,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
-          ],
-        ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.yellow,
+              foregroundColor: AppColors.darkBlue,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: () {},
+            child: Text(
+              'Canjear',
+              style: GoogleFonts.fredoka(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ),
     );
   }

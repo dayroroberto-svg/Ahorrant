@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'theme/app_theme.dart';
 import 'screens/inicio_screen.dart';
 import 'screens/hormiguero_screen.dart';
 import 'screens/armario_screen.dart';
@@ -17,10 +19,7 @@ class AhorrantApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Ahorrant',
-      theme: ThemeData(
-        primarySwatch: Colors.orange,
-        useMaterial3: true,
-      ),
+      theme: AppTheme.lightTheme,
       home: const HomeScreen(),
       debugShowCheckedModeBanner: false,
     );
@@ -56,36 +55,74 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _widgetOptions[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Inicio',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.teal.withValues(alpha: 0.16),
+              blurRadius: 18,
+              offset: const Offset(0, -6),
+            ),
+          ],
+          border: Border.all(color: AppColors.softTeal, width: 1.5),
+        ),
+        padding: const EdgeInsets.only(top: 8, bottom: 8),
+        child: SafeArea(
+          top: false,
+          child: BottomNavigationBar(
+            items: const <BottomNavigationBarItem>[
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_rounded),
+                activeIcon: Icon(Icons.home_rounded, size: 32),
+                label: 'Inicio',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.castle_rounded),
+                activeIcon: Icon(Icons.castle_rounded, size: 32),
+                label: 'Hormiguero',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.checkroom_rounded),
+                activeIcon: Icon(Icons.checkroom_rounded, size: 32),
+                label: 'Armario',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.flag_rounded),
+                activeIcon: Icon(Icons.flag_rounded, size: 32),
+                label: 'Metas',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.auto_stories_rounded),
+                activeIcon: Icon(Icons.auto_stories_rounded, size: 32),
+                label: 'Clases',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.insights_rounded),
+                activeIcon: Icon(Icons.insights_rounded, size: 32),
+                label: 'Progreso',
+              ),
+            ],
+            currentIndex: _selectedIndex,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            type: BottomNavigationBarType.fixed,
+            iconSize: 28,
+            selectedItemColor: AppColors.teal,
+            unselectedItemColor: AppColors.textMuted.withValues(alpha: 0.8),
+            selectedLabelStyle: GoogleFonts.fredoka(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              letterSpacing: 0.3,
+            ),
+            unselectedLabelStyle: GoogleFonts.fredoka(
+              fontWeight: FontWeight.w500,
+              fontSize: 11.5,
+            ),
+            onTap: _onItemTapped,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.looks_one),
-            label: 'Hormiguero',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_bag),
-            label: 'Armario',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.flag),
-            label: 'Metas',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.book),
-            label: 'Clases',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart),
-            label: 'Progreso',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.orange,
-        onTap: _onItemTapped,
+        ),
       ),
     );
   }

@@ -1,14 +1,11 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../models/transaction_model.dart';
 import '../services/database_helper.dart';
 import '../services/notification_service.dart';
-import '../services/sync_service.dart';
-import 'armario_screen.dart';
-import 'hormiguero_screen.dart';
-import 'metas_screen.dart';
+import '../theme/app_theme.dart';
 
 class InicioScreen extends StatefulWidget {
   const InicioScreen({super.key});
@@ -27,10 +24,8 @@ class _InicioScreenState extends State<InicioScreen>
   List<Transaction> _transactions = [];
   double _totalGastos = 0;
   double _totalIngresos = 0;
-  int _pendientesSync = 0;
   String? _ultimaNotificacion;
   bool _permisosNotificaciones = false;
-  bool _sincronizando = false;
 
   static const List<String> _categoriasEgreso = [
     'gastos hormiga',
@@ -92,7 +87,6 @@ class _InicioScreenState extends State<InicioScreen>
     if (!mounted) return;
     setState(() {
       _transactions = transacciones;
-      _pendientesSync = transacciones.where((t) => !t.synced).length;
       _calcularTotales();
     });
   }
@@ -135,7 +129,7 @@ class _InicioScreenState extends State<InicioScreen>
           '${notificacion.title} - ${notificacion.text}';
     });
 
-    final tipo = await _mostrarDialogoTipo();
+    final tipo = await _mostrarDialogoTipo(monto);
     if (tipo == null) return;
 
     String? categoria;
@@ -164,9 +158,10 @@ class _InicioScreenState extends State<InicioScreen>
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
+        backgroundColor: AppColors.teal,
         content: Text(
-          '${tipo == 'ingreso' ? 'Ingreso' : 'Gasto'} registrado: '
-          'S/ ${monto.toStringAsFixed(2)} - $categoria',
+          '${tipo == 'ingreso' ? 'Ingreso' : 'Gasto'} registrado: S/ ${monto.toStringAsFixed(2)} - ${_etiquetaCategoria(categoria)}',
+          style: GoogleFonts.fredoka(fontWeight: FontWeight.bold),
         ),
         duration: const Duration(seconds: 2),
       ),
@@ -181,23 +176,67 @@ class _InicioScreenState extends State<InicioScreen>
     return double.tryParse(montoTexto);
   }
 
-  Future<String?> _mostrarDialogoTipo() {
+  Future<String?> _mostrarDialogoTipo(double monto) {
     return showDialog<String>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Se detecto un movimiento de dinero'),
-          content: const Text('¿Es un ingreso o un egreso?'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: Text(
+            '💰 Movimiento detectado',
+            style: GoogleFonts.fredoka(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: AppColors.darkBlue,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'S/ ${monto.toStringAsFixed(2)}',
+                style: GoogleFonts.fredoka(
+                  fontSize: 36,
+                  color: AppColors.teal,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '¿Es un ingreso o un egreso?',
+                style: GoogleFonts.fredoka(
+                  fontSize: 15,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
           actions: [
             TextButton.icon(
               onPressed: () => Navigator.pop(context, 'ingreso'),
-              icon: const Icon(Icons.add_circle_outline, color: Colors.green),
-              label: const Text('Ingreso'),
+              icon: const Icon(Icons.add_circle_outline, color: AppColors.teal),
+              label: Text(
+                'Ingreso',
+                style: GoogleFonts.fredoka(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.teal,
+                ),
+              ),
             ),
             TextButton.icon(
               onPressed: () => Navigator.pop(context, 'egreso'),
-              icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
-              label: const Text('Egreso'),
+              icon: const Icon(Icons.remove_circle_outline, color: AppColors.expenseRed),
+              label: Text(
+                'Egreso',
+                style: GoogleFonts.fredoka(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.expenseRed,
+                ),
+              ),
             ),
           ],
         );
@@ -220,21 +259,33 @@ class _InicioScreenState extends State<InicioScreen>
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Text(
-                  'Movimiento detectado: S/ ${monto.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 18,
+                  'Gasto: S/ ${monto.toStringAsFixed(2)}',
+                  style: GoogleFonts.fredoka(
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
+                    color: AppColors.darkBlue,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -242,31 +293,50 @@ class _InicioScreenState extends State<InicioScreen>
                   descripcion,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: GoogleFonts.fredoka(fontSize: 13, color: AppColors.textMuted),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '¿Qué tipo de gasto fue?',
+                  style: GoogleFonts.fredoka(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textDark,
+                  ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  '¿Que tipo de gasto fue?',
-                  style: TextStyle(fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 8),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: 10,
+                  runSpacing: 10,
                   children: _categoriasEgreso.map((categoria) {
+                    final esHormiga = categoria == 'gastos hormiga';
                     return ActionChip(
-                      avatar: const Icon(Icons.label_outline, size: 16),
-                      label: Text(_etiquetaCategoria(categoria)),
+                      avatar: Icon(
+                        _iconoPorCategoria(categoria),
+                        size: 18,
+                        color: esHormiga ? AppColors.darkBlue : AppColors.teal,
+                      ),
+                      backgroundColor: esHormiga ? AppColors.yellow : AppColors.softTeal,
+                      label: Text(
+                        _etiquetaCategoria(categoria),
+                        style: GoogleFonts.fredoka(
+                          fontWeight: FontWeight.bold,
+                          color: esHormiga ? AppColors.darkBlue : AppColors.teal,
+                        ),
+                      ),
                       onPressed: () => Navigator.pop(context, categoria),
                     );
                   }).toList(),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Descartar'),
+                    child: Text(
+                      'Descartar',
+                      style: GoogleFonts.fredoka(color: AppColors.textMuted),
+                    ),
                   ),
                 ),
               ],
@@ -280,11 +350,11 @@ class _InicioScreenState extends State<InicioScreen>
   String _etiquetaCategoria(String categoria) {
     switch (categoria) {
       case 'gastos hormiga':
-        return 'Gasto hormiga';
+        return 'Gasto hormiga 🐜';
       case 'necesario':
         return 'Necesario';
       case 'alimentacion':
-        return 'Alimentacion';
+        return 'Alimentación';
       case 'transporte':
         return 'Transporte';
       case 'entretenimiento':
@@ -294,24 +364,30 @@ class _InicioScreenState extends State<InicioScreen>
     }
   }
 
-  Future<void> _sincronizar() async {
-    if (_sincronizando) return;
-    setState(() => _sincronizando = true);
-    final resultado = await SyncService.sincronizarPendientes();
-    if (!mounted) return;
-    await _cargarTransacciones();
-    if (!mounted) return;
-    setState(() => _sincronizando = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(resultado.mensaje)),
-    );
+  IconData _iconoPorCategoria(String categoria) {
+    switch (categoria) {
+      case 'gastos hormiga':
+        return Icons.pest_control_rounded;
+      case 'necesario':
+        return Icons.check_circle_outline_rounded;
+      case 'alimentacion':
+        return Icons.restaurant_rounded;
+      case 'transporte':
+        return Icons.directions_bus_rounded;
+      case 'entretenimiento':
+        return Icons.sports_esports_rounded;
+      case 'ingreso':
+        return Icons.savings_rounded;
+      default:
+        return Icons.category_rounded;
+    }
   }
 
   void _simularNotificacionYape() {
     _onNotificacionDetectada(
       DetectedNotification(
         title: 'Pago mediante Yape',
-        text: 'S/ 8.00 - Cafe',
+        text: 'S/ 8.00 - Café matutino',
         timestamp: DateTime.now(),
       ),
     );
@@ -322,7 +398,7 @@ class _InicioScreenState extends State<InicioScreen>
       DetectedNotification(
         packageName: 'com.google.android.gm',
         title: 'BCP: Consumo con tu tarjeta',
-        text: 'Se realizo un consumo de S/ 45.00 en tu tarjeta de credito.',
+        text: 'Se realizó un consumo de S/ 45.00 en tu tarjeta de débito.',
         timestamp: DateTime.now(),
       ),
     );
@@ -335,44 +411,263 @@ class _InicioScreenState extends State<InicioScreen>
     await _cargarTransacciones();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Marcado como gasto hormiga')),
+      SnackBar(
+        backgroundColor: AppColors.yellow,
+        content: Text(
+          '¡Movimiento clasificado como Gasto Hormiga! 🐜',
+          style: GoogleFonts.fredoka(
+            color: AppColors.darkBlue,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildGreetingCard() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.pink[50],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.pink.shade200),
-      ),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Text(
-              '¡Hola, amiga! tu hormiguita ahorradora esta vigilando tus gastos',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
-              ),
+  void _mostrarDetalleMovimiento(Transaction t) {
+    final esEgreso = t.type == 'egreso';
+    final fechaStr = '${t.date.day.toString().padLeft(2, '0')}/${t.date.month.toString().padLeft(2, '0')}/${t.date.year} • ${t.date.hour.toString().padLeft(2, '0')}:${t.date.minute.toString().padLeft(2, '0')}';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Información del Movimiento',
+                      style: GoogleFonts.fredoka(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.darkBlue,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: esEgreso
+                        ? const Color(0xFFFFF0F0)
+                        : AppColors.softTeal,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: esEgreso
+                          ? AppColors.expenseRed.withValues(alpha: 0.3)
+                          : AppColors.teal.withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            esEgreso ? 'Egreso / Gasto' : 'Ingreso',
+                            style: GoogleFonts.fredoka(
+                              fontSize: 13,
+                              color: esEgreso
+                                  ? AppColors.expenseRed
+                                  : AppColors.teal,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${esEgreso ? '-' : '+'} S/ ${t.amount.toStringAsFixed(2)}',
+                            style: GoogleFonts.fredoka(
+                              fontSize: 30,
+                              fontWeight: FontWeight.w900,
+                              color: esEgreso
+                                  ? AppColors.expenseRed
+                                  : AppColors.teal,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: esEgreso
+                              ? AppColors.expenseRed
+                              : AppColors.teal,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          esEgreso
+                              ? Icons.arrow_upward_rounded
+                              : Icons.arrow_downward_rounded,
+                          color: AppColors.white,
+                          size: 28,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _detalleFila(
+                  icono: _iconoPorCategoria(t.category),
+                  titulo: 'Categoría',
+                  valor: _etiquetaCategoria(t.category),
+                  destacadoColor: t.category == 'gastos hormiga'
+                      ? AppColors.yellow
+                      : null,
+                ),
+                const Divider(height: 16),
+                _detalleFila(
+                  icono: Icons.account_balance_wallet_rounded,
+                  titulo: 'Origen del Registro',
+                  valor: t.origin.toUpperCase(),
+                ),
+                const Divider(height: 16),
+                _detalleFila(
+                  icono: Icons.calendar_today_rounded,
+                  titulo: 'Fecha y Hora',
+                  valor: fechaStr,
+                ),
+                const Divider(height: 16),
+                _detalleFila(
+                  icono: Icons.description_rounded,
+                  titulo: 'Detalle / Concepto',
+                  valor: (t.description != null && t.description!.isNotEmpty)
+                      ? t.description!
+                      : 'Sin descripción adicional',
+                ),
+                const SizedBox(height: 24),
+                if (esEgreso && t.category != 'gastos hormiga')
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.yellow,
+                      foregroundColor: AppColors.darkBlue,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _marcarGastoHormiga(t);
+                    },
+                    icon: const Icon(Icons.pest_control_rounded),
+                    label: Text(
+                      'Marcar como Gasto Hormiga 🐜',
+                      style: GoogleFonts.fredoka(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Cerrar',
+                    style: GoogleFonts.fredoka(
+                      color: AppColors.textMuted,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 12),
-          ClipOval(
-            child: Image.asset(
-              'assets/hormiguita.png',
-              width: 48,
-              height: 48,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return const Icon(
-                  Icons.favorite,
-                  color: Colors.pink,
-                  size: 40,
-                );
-              },
+        );
+      },
+    );
+  }
+
+  Widget _detalleFila({
+    required IconData icono,
+    required String titulo,
+    required String valor,
+    Color? destacadoColor,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.softCyan,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icono, size: 20, color: AppColors.teal),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: GoogleFonts.fredoka(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                if (destacadoColor != null)
+                  Container(
+                    margin: const EdgeInsets.only(top: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: destacadoColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      valor,
+                      style: GoogleFonts.fredoka(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.darkBlue,
+                      ),
+                    ),
+                  )
+                else
+                  Text(
+                    valor,
+                    style: GoogleFonts.fredoka(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textDark,
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
@@ -380,137 +675,197 @@ class _InicioScreenState extends State<InicioScreen>
     );
   }
 
-  Widget _buildMovimientosList() {
-    if (_transactions.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(8.0),
-        child: Text(
-          'No hay movimientos registrados. Realiza un pago o espera el correo '
-          'bancario; tambien puedes usar "Simular correo" para probar.',
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        for (final t in _transactions.take(5))
+  // Cuadro con el mensaje y la imagen: mas ancho, llamativo y amigable
+  Widget _buildGreetingCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.cyan, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.cyan.withValues(alpha: 0.18),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      '¡Hola, amiga!',
+                      style: GoogleFonts.fredoka(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.darkBlue,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.yellow,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Ahorrante',
+                        style: GoogleFonts.fredoka(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.darkBlue,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Tu hormiguita ahorradora está vigilando tus gastos y cuidando cada monedita 🐜✨',
+                  style: GoogleFonts.fredoka(
+                    fontSize: 14,
+                    color: AppColors.textDark,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
           Container(
-            margin: const EdgeInsets.only(bottom: 8),
+            width: 76,
+            height: 76,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade300),
-                boxShadow: [
+              shape: BoxShape.circle,
+              color: AppColors.softYellow,
+              border: Border.all(color: AppColors.yellow, width: 3),
+              boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 4,
+                  color: AppColors.yellow.withValues(alpha: 0.35),
+                  blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
               ],
             ),
-            child: ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              leading: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: (t.type == 'egreso'
-                          ? Colors.red
-                          : Colors.green)
-                      .withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  t.type == 'egreso' ? Icons.remove : Icons.add,
-                  color: t.type == 'egreso' ? Colors.red : Colors.green,
-                  size: 20,
-                ),
-              ),
-              title: Text(
-                '${t.category}: S/ ${t.amount.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-              ),
-              subtitle: Text(
-                '${t.origin} - ${t.description ?? ""}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-              trailing: PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, size: 20),
-                onSelected: (value) {
-                  if (value == 'hormiga') {
-                    _marcarGastoHormiga(t);
-                  }
+            child: ClipOval(
+              child: Image.asset(
+                'assets/hormiguita.png',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(
+                    Icons.pest_control_rounded,
+                    color: AppColors.teal,
+                    size: 42,
+                  );
                 },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'hormiga',
-                    child: ListTile(
-                      leading: Icon(Icons.label_outline),
-                      title: Text('Gasto hormiga'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                ],
               ),
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildResumenTarjeta() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Resumen Financiero',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildResumenItem(
-                  icon: Icons.remove,
-                  label: 'Gastos',
-                  amount: _totalGastos,
-                  color: Colors.red,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.softCyan, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.teal.withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Resumen Financiero',
+                style: GoogleFonts.fredoka(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.darkBlue,
                 ),
-                _buildResumenItem(
-                  icon: Icons.add,
-                  label: 'Ingresos',
-                  amount: _totalIngresos,
-                  color: Colors.green,
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.softTeal,
+                  borderRadius: BorderRadius.circular(14),
                 ),
-              ],
-            ),
-            const Divider(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildResumenItem(
-                  icon: Icons.savings_outlined,
-                  label: 'Hormigasoles',
-                  amount: _calcularHormigasoles(),
-                  color: Colors.orange,
+                child: Text(
+                  'Este mes',
+                  style: GoogleFonts.fredoka(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.teal,
+                  ),
                 ),
-                _buildResumenItem(
-                  icon: Icons.trending_up,
-                  label: 'Progreso metas',
-                  amount: _calcularProgresoMetas(),
-                  color: Colors.green,
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildResumenItem(
+                icon: Icons.arrow_upward_rounded,
+                label: 'Gastos',
+                amount: _totalGastos,
+                color: AppColors.expenseRed,
+                bgColor: const Color(0xFFFFF0F0),
+              ),
+              _buildResumenItem(
+                icon: Icons.arrow_downward_rounded,
+                label: 'Ingresos',
+                amount: _totalIngresos,
+                color: AppColors.teal,
+                bgColor: AppColors.softTeal,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Divider(height: 1, color: Colors.grey.shade200),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildResumenItem(
+                icon: Icons.pest_control_rounded,
+                label: 'Hormigasoles',
+                amount: _calcularHormigasoles(),
+                color: AppColors.darkBlue,
+                bgColor: AppColors.softYellow,
+                esMonedaVirtual: true,
+              ),
+              _buildResumenItem(
+                icon: Icons.flag_rounded,
+                label: 'Metas',
+                amount: _calcularProgresoMetas(),
+                color: AppColors.cyan,
+                bgColor: AppColors.softCyan,
+                esPorcentaje: true,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -520,152 +875,267 @@ class _InicioScreenState extends State<InicioScreen>
     required String label,
     required double amount,
     required Color color,
+    required Color bgColor,
+    bool esPorcentaje = false,
+    bool esMonedaVirtual = false,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 4),
-            Text(
-              'S/ ${amount.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
-        ),
-      ],
-    );
-  }
+    String formattedAmount = 'S/ ${amount.toStringAsFixed(2)}';
+    if (esPorcentaje) {
+      formattedAmount = '${amount.toStringAsFixed(0)}%';
+    } else if (esMonedaVirtual) {
+      formattedAmount = '${amount.toInt()} HS';
+    }
 
-  Widget _buildSyncCard() {
-    return Card(
-      child: ListTile(
-        leading: Icon(
-          _pendientesSync == 0 ? Icons.cloud_done : Icons.cloud_queue,
-          color: _pendientesSync == 0 ? Colors.green : Colors.orange,
-        ),
-        title: const Text('Sincronizacion'),
-        subtitle: Text(
-          _pendientesSync == 0
-              ? 'Todo sincronizado'
-              : '$_pendientesSync movimiento(s) en cola local',
-        ),
-        trailing: _sincronizando
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : TextButton(
-                onPressed: _sincronizar,
-                child: const Text('Sincronizar'),
-              ),
+    return Expanded(
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, size: 22, color: color),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  formattedAmount,
+                  style: GoogleFonts.fredoka(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: GoogleFonts.fredoka(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildModulosGrid(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
-      children: [
-        _moduloTarjeta(
-          context,
-          icon: Icons.looks_one,
-          label: 'Hormiguero',
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const HormigueroScreen()),
-          ),
-        ),
-        _moduloTarjeta(
-          context,
-          icon: Icons.shopping_bag,
-          label: 'Armario',
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ArmarioScreen()),
-          ),
-        ),
-        _moduloTarjeta(
-          context,
-          icon: Icons.flag,
-          label: 'Metas',
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const MetasScreen()),
-          ),
-        ),
-        _moduloTarjeta(
-          context,
-          icon: Icons.mail_outline,
-          label: 'Simular correo',
-          onTap: _simularCorreo,
-        ),
-      ],
-    );
-  }
-
-  Widget _moduloTarjeta(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
+  // Lista de movimientos recientes: mas notoria y con click para ver detalles
+  Widget _buildMovimientosList() {
+    if (_transactions.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.orange[100],
-          borderRadius: BorderRadius.circular(12),
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.softTeal),
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 28, color: Colors.orange),
+            const Icon(
+              Icons.receipt_long_rounded,
+              size: 48,
+              color: AppColors.cyan,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Aún no hay movimientos',
+              style: GoogleFonts.fredoka(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkBlue,
+              ),
+            ),
             const SizedBox(height: 4),
             Text(
-              label,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              'Realiza un pago con Yape o presiona "Simular" arriba para registrar tu primer gasto.',
               textAlign: TextAlign.center,
+              style: GoogleFonts.fredoka(
+                fontSize: 13,
+                color: AppColors.textMuted,
+              ),
             ),
           ],
         ),
-      ),
+      );
+    }
+
+    return Column(
+      children: [
+        for (final t in _transactions.take(6))
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: t.type == 'egreso'
+                    ? const Color(0xFFFFEBEE)
+                    : AppColors.softTeal,
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.darkBlue.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () => _mostrarDetalleMovimiento(t),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      // Icono con fondo temático
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: t.type == 'egreso'
+                              ? const Color(0xFFFFEBEE)
+                              : AppColors.softTeal,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          _iconoPorCategoria(t.category),
+                          color: t.type == 'egreso'
+                              ? AppColors.expenseRed
+                              : AppColors.teal,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      // Textos centrales
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    _etiquetaCategoria(t.category),
+                                    style: GoogleFonts.fredoka(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.textDark,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.softCyan,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    t.origin.toUpperCase(),
+                                    style: GoogleFonts.fredoka(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.cyan,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              t.description ?? 'Sin descripción',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.fredoka(
+                                fontSize: 12,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Monto y chevron indicador de click
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '${t.type == 'egreso' ? '-' : '+'} S/ ${t.amount.toStringAsFixed(2)}',
+                            style: GoogleFonts.fredoka(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: t.type == 'egreso'
+                                  ? AppColors.expenseRed
+                                  : AppColors.teal,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Ver detalle',
+                                style: GoogleFonts.fredoka(
+                                  fontSize: 10,
+                                  color: AppColors.teal,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Icon(
+                                Icons.chevron_right_rounded,
+                                size: 14,
+                                color: AppColors.teal,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
   Widget _buildUltimaNotificacion() {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.green[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.green.shade200),
+        color: AppColors.softCyan,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cyan.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.notifications_active, color: Colors.green),
-          const SizedBox(width: 8),
+          const Icon(Icons.notifications_active_rounded,
+              color: AppColors.teal),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Ultima deteccion: $_ultimaNotificacion',
-              style: const TextStyle(fontSize: 12, color: Colors.green),
+              'Última detección: $_ultimaNotificacion',
+              style: GoogleFonts.fredoka(
+                fontSize: 12.5,
+                color: AppColors.darkBlue,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -675,25 +1145,42 @@ class _InicioScreenState extends State<InicioScreen>
 
   Widget _buildPermisosPendientes() {
     return Container(
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.orange[100],
-        borderRadius: BorderRadius.circular(8),
+        color: AppColors.softYellow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.yellow),
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber, color: Colors.orange),
-          const SizedBox(width: 8),
-          const Expanded(
+          const Icon(Icons.warning_amber_rounded, color: AppColors.darkBlue),
+          const SizedBox(width: 10),
+          Expanded(
             child: Text(
-              'Permisos de notificaciones pendientes. Activalos para detectar '
-              'correos bancarios y Yape automaticamente.',
-              style: TextStyle(fontSize: 12, color: Colors.deepOrange),
+              'Permisos pendientes. Actívalos para detectar correos bancarios y Yape automáticamente.',
+              style: GoogleFonts.fredoka(
+                fontSize: 12,
+                color: AppColors.darkBlue,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
-          TextButton(
+          const SizedBox(width: 6),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.yellow,
+              foregroundColor: AppColors.darkBlue,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             onPressed: _activarPermisos,
-            child: const Text('Activar'),
+            child: Text(
+              'Activar',
+              style: GoogleFonts.fredoka(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -722,57 +1209,99 @@ class _InicioScreenState extends State<InicioScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ahorrant'),
+        toolbarHeight: 68,
         automaticallyImplyLeading: false,
+        centerTitle: true,
+        title: const AhorrantLogoTitle(fontSize: 24),
         actions: [
           IconButton(
-            icon: const Icon(Icons.mail_outline),
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.softCyan,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.cyan.withValues(alpha: 0.5)),
+              ),
+              child: const Icon(
+                Icons.mail_outline_rounded,
+                size: 20,
+                color: AppColors.teal,
+              ),
+            ),
             tooltip: 'Simular correo bancario',
             onPressed: _simularCorreo,
           ),
           IconButton(
-            icon: const Icon(Icons.flash_on),
-            tooltip: 'Simular notificacion Yape',
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.softYellow,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.yellow),
+              ),
+              child: const Icon(
+                Icons.flash_on_rounded,
+                size: 20,
+                color: AppColors.darkBlue,
+              ),
+            ),
+            tooltip: 'Simular notificación Yape',
             onPressed: _simularNotificacionYape,
           ),
+          const SizedBox(width: 8),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _simularCorreo,
-        icon: const Icon(Icons.mail_outline),
-        label: const Text('Simular correo'),
-        backgroundColor: Colors.orange,
+        onPressed: _simularNotificacionYape,
+        icon: const Icon(Icons.flash_on_rounded, color: AppColors.darkBlue),
+        label: Text(
+          'Simular Yape',
+          style: GoogleFonts.fredoka(
+            fontWeight: FontWeight.bold,
+            color: AppColors.darkBlue,
+          ),
+        ),
+        backgroundColor: AppColors.yellow,
+        elevation: 3,
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildGreetingCard(),
-              const SizedBox(height: 16),
-              _buildResumenTarjeta(),
-              const SizedBox(height: 16),
-              _buildSyncCard(),
-              const SizedBox(height: 24),
-              const Text(
-                'Movimientos Recientes',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              _buildMovimientosList(),
-              const SizedBox(height: 24),
-              const Text(
-                'Accesos Rapidos',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 8),
-              _buildModulosGrid(context),
-              const SizedBox(height: 24),
-              if (_ultimaNotificacion != null) _buildUltimaNotificacion(),
-              if (!_permisosNotificaciones) _buildPermisosPendientes(),
-            ],
-          ),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildGreetingCard(),
+            const SizedBox(height: 18),
+            _buildResumenTarjeta(),
+            const SizedBox(height: 22),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Movimientos Recientes',
+                  style: GoogleFonts.fredoka(
+                    fontSize: 19,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkBlue,
+                  ),
+                ),
+                if (_transactions.isNotEmpty)
+                  Text(
+                    'Toca para ver detalle',
+                    style: GoogleFonts.fredoka(
+                      fontSize: 12,
+                      color: AppColors.teal,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _buildMovimientosList(),
+            const SizedBox(height: 20),
+            if (_ultimaNotificacion != null) _buildUltimaNotificacion(),
+            if (!_permisosNotificaciones) _buildPermisosPendientes(),
+            const SizedBox(height: 70),
+          ],
         ),
       ),
     );
