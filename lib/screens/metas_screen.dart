@@ -41,10 +41,12 @@ class MetasScreen extends StatelessWidget {
               'Progreso: 60%',
               style: TextStyle(fontSize: 18),
             ),
-            const LinearProgressIndicator(
+            LinearProgressIndicator(
               value: 0.6,
               backgroundColor: Colors.green[200],
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Colors.green,
+              ),
             ),
           ],
         ),

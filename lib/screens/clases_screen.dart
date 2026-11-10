@@ -53,7 +53,7 @@ class ClasesScreen extends StatelessWidget {
           children: [
             Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 4),
-            Text(subitulo, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            Text(subtitulo, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
           ],
         ),
       ),

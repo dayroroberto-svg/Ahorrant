@@ -18,6 +18,7 @@ dependencies:
   shared_preferences: ^2.2.2  # Almacenamiento local
   sqflite: ^2.2.4     # Base de datos SQLite local
   path_provider: ^2.1.0 # Rutas de acceso en dispositivo
+  path: ^1.9.0        # Manipulación de rutas de archivos y bd
 
   # Notificaciones
   firebase_messaging: ^14.8.0  # Notificaciones push (Firebase)
@@ -26,6 +27,9 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+
+dependency_overrides:
+  path_provider_foundation: 2.4.1
 
 # Para fusos horarios y formateo
 flutter:

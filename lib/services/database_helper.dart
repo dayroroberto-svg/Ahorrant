@@ -1,6 +1,7 @@
 import 'dart:io';
+import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite/sqflite.dart' hide Transaction;
 import '../models/transaction_model.dart';
 
 class DatabaseHelper {
@@ -8,13 +9,14 @@ class DatabaseHelper {
   static DatabaseHelper get instance => _instance ??= DatabaseHelper._internal();
 
   DatabaseHelper._internal();
+  factory DatabaseHelper() => instance;
 
-  late Database _database;
+  Database? _database;
 
   Future<Database> get database async {
-    if (_database != null) return _database;
+    if (_database != null) return _database!;
     _database = await _initDatabase();
-    return _database;
+    return _database!;
   }
 
   Future<Database> _initDatabase() async {
@@ -98,7 +100,7 @@ class DatabaseHelper {
   Future<int> getTransactionCount() async {
     final db = await instance.database;
     var result = await db.rawQuery('SELECT COUNT(*) FROM transactions');
-    Sqflite.firstIntValue(result) ?? 0;
+    return Sqflite.firstIntValue(result) ?? 0;
   }
 
   // Cerrar base de datos

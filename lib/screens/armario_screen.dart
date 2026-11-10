@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 class ArmarioScreen extends StatelessWidget {
@@ -22,17 +23,23 @@ class ArmarioScreen extends StatelessWidget {
             const SizedBox(height: 20),
             const Text(
               'Tienda Virtual',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 10),
             const Text(
               'Personaliza a tu mascota con accesorios',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
             ),
             const SizedBox(height: 40),
-            _buildArticulo('Sombrero de explorador', 50, Icons.),
-            _buildArticulo('Mochila aventurera', 80, Icons.bag),
-            _buildArticulo('Gafas de sol', 40, Icons),
+            _buildArticulo('Sombrero de explorador', 50, Icons.explore),
+            _buildArticulo('Mochila aventurera', 80, Icons.backpack),
+            _buildArticulo('Gafas de sol', 40, Icons.visibility),
           ],
         ),
       ),
@@ -54,8 +61,13 @@ class ArmarioScreen extends StatelessWidget {
             const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children [
-                Text(nombre, style: const TextStyle(fontWeight: FontWeight.bold)),
+              children: [
+                Text(
+                  nombre,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 Text('$precio HS'),
               ],
             ),

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Servicio para manejar la lectura de notificaciones Android
@@ -11,7 +12,7 @@ class NotificationService {
       // Platform.invokeMethod('solicitarPermisNotificaciones');
       return true; // Simulamos que el usuario aceptó
     } on PlatformException catch (e) {
-      print('Error al solicitar permisos: ${e.message}');
+      debugPrint('Error al solicitar permisos: ${e.message}');
       return false;
     }
   }
@@ -23,19 +24,20 @@ class NotificationService {
       // final result = await Platform.invokeMethod('verificarPermisos');
       return true; // Simulamos que tienen permisos
     } on PlatformException catch (e) {
-      print('Error al verificar permisos: ${e.message}');
+      debugPrint('Error al verificar permisos: ${e.message}');
       return false;
     }
   }
 
   /// Procesar una notificación detectada
-  static Map<String, dynamic>? procesarNotificacion(String titulo, String cuerpo) {
+  static Map<String, dynamic>? procesarNotificacion(
+      String titulo, String cuerpo) {
     try {
       // Lógica para extraer monto, fecha, tipo de operación de la notificación
       // Ejemplo: "Pago mediante Yape. Monto: S/ 8.00."
       final monto = _extraerMonto(cuerpo);
       final tipo = _determinarTipo(titulo, cuerpo);
-      
+
       if (monto != null) {
         return {
           'monto': monto,
@@ -47,7 +49,7 @@ class NotificationService {
       }
       return null;
     } catch (e) {
-      print('Error procesando notificación: $e');
+      debugPrint('Error procesando notificación: $e');
       return null;
     }
   }
@@ -58,7 +60,8 @@ class NotificationService {
     final regex = RegExp(r'S/[/\s]*[\d]+(?:[.,]\d{1,2})?');
     final match = regex.firstMatch(texto);
     if (match != null) {
-      final montoTexto = match.group(0).replaceAll(RegExp(r'S/[/]'), '').trim();
+      final montoTexto =
+          (match.group(0) ?? '').replaceAll(RegExp(r'S/[/]'), '').trim();
       try {
         return double.parse(montoTexto);
       } catch (e) {
@@ -71,20 +74,25 @@ class NotificationService {
   /// Determinar si es ingreso o egreso basándose en el título y cuerpo
   static String _determinarTipo(String titulo, String cuerpo) {
     final textoCompleto = '$titulo $cuerpo'.toLowerCase();
-    
+
     // Palabras clave para ingresos
-    final palabrasIngreso = ['recibido', 'transferencia recibida', 'regaló', 'bono'];
-    
+    final palabrasIngreso = [
+      'recibido',
+      'transferencia recibida',
+      'regaló',
+      'bono'
+    ];
+
     // Palabras clave para egresos
     final palabrasEgreso = ['pago', 'gastó', 'compró', 'transferencia', 'pagó'];
-    
+
     if (palabrasIngreso.any(textoCompleto.contains)) {
       return 'ingreso';
     }
     if (palabrasEgreso.any(textoCompleto.contains)) {
       return 'egreso';
     }
-    
+
     // Default a egreso si es una transacción financiera
     return 'egreso';
   }
