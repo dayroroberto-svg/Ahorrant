@@ -125,11 +125,9 @@ class _InicioScreenState extends State<InicioScreen>
       return;
     }
 
-    final procesado = NotificationService.procesarNotificacion(
-      notificacion.title,
-      notificacion.text,
-    );
-    if (procesado == null) return;
+    final monto = _extraerMonto(notificacion.text) ??
+        _extraerMonto(notificacion.title);
+    if (monto == null) return;
 
     if (!mounted) return;
     setState(() {
@@ -137,32 +135,15 @@ class _InicioScreenState extends State<InicioScreen>
           '${notificacion.title} - ${notificacion.text}';
     });
 
-    await _confirmarYGuardar(procesado, notificacion.origen);
-  }
-
-  Future<void> _procesarColaEventos() async {
-    while (_colaEventos.isNotEmpty && mounted) {
-      final notificacion = _colaEventos.removeAt(0);
-      await _onNotificacionDetectada(notificacion);
-    }
-  }
-
-  Future<void> _confirmarYGuardar(
-    Map<String, dynamic> procesado,
-    String origen,
-  ) async {
-    final monto = procesado['monto'] as double;
-    final tipo = procesado['tipo'] as String;
-    final descripcion =
-        '${procesado['titulo']}: ${procesado['descripcion']}';
+    final tipo = await _mostrarDialogoTipo();
+    if (tipo == null) return;
 
     String? categoria;
     if (tipo == 'ingreso') {
-      final registrar = await _mostrarDialogoIngreso(monto);
-      if (registrar != true) return;
       categoria = 'ingreso';
     } else {
-      categoria = await _mostrarDialogoClasificacion(monto, descripcion);
+      categoria = await _mostrarDialogoClasificacion(
+          monto, '${notificacion.title}: ${notificacion.text}');
       if (categoria == null) return;
     }
 
@@ -171,14 +152,13 @@ class _InicioScreenState extends State<InicioScreen>
       date: DateTime.now(),
       type: tipo,
       category: categoria,
-      origin: origen,
-      description: descripcion,
+      origin: notificacion.origen,
+      description: '${notificacion.title}: ${notificacion.text}',
       synced: false,
     );
 
     await _dbHelper.insertTransaction(transaccion);
     if (!mounted) return;
-
     await _cargarTransacciones();
     if (!mounted) return;
 
@@ -191,6 +171,45 @@ class _InicioScreenState extends State<InicioScreen>
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  double? _extraerMonto(String texto) {
+    final regex = RegExp(r'S\/\.?\s*([\d]+(?:[.,]\d{1,2})?)');
+    final match = regex.firstMatch(texto);
+    if (match == null) return null;
+    final montoTexto = (match.group(1) ?? '').replaceAll(',', '.');
+    return double.tryParse(montoTexto);
+  }
+
+  Future<String?> _mostrarDialogoTipo() {
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Se detecto un movimiento de dinero'),
+          content: const Text('¿Es un ingreso o un egreso?'),
+          actions: [
+            TextButton.icon(
+              onPressed: () => Navigator.pop(context, 'ingreso'),
+              icon: const Icon(Icons.add_circle_outline, color: Colors.green),
+              label: const Text('Ingreso'),
+            ),
+            TextButton.icon(
+              onPressed: () => Navigator.pop(context, 'egreso'),
+              icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+              label: const Text('Egreso'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _procesarColaEventos() async {
+    while (_colaEventos.isNotEmpty && mounted) {
+      final notificacion = _colaEventos.removeAt(0);
+      await _onNotificacionDetectada(notificacion);
+    }
   }
 
   Future<String?> _mostrarDialogoClasificacion(
@@ -258,31 +277,6 @@ class _InicioScreenState extends State<InicioScreen>
     );
   }
 
-  Future<bool?> _mostrarDialogoIngreso(double monto) {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Ingreso detectado'),
-          content: Text(
-            'Se detecto un ingreso de S/ ${monto.toStringAsFixed(2)}. '
-            '¿Deseas registrarlo?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Descartar'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Registrar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   String _etiquetaCategoria(String categoria) {
     switch (categoria) {
       case 'gastos hormiga':
@@ -334,61 +328,137 @@ class _InicioScreenState extends State<InicioScreen>
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ahorrant'),
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.mail_outline),
-            tooltip: 'Simular correo bancario',
-            onPressed: _simularCorreo,
+  Future<void> _marcarGastoHormiga(Transaction t) async {
+    final actualizado = t.copyWith(category: 'gastos hormiga');
+    await _dbHelper.updateTransaction(actualizado);
+    if (!mounted) return;
+    await _cargarTransacciones();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Marcado como gasto hormiga')),
+    );
+  }
+
+  Widget _buildGreetingCard() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.pink[50],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.pink.shade200),
+      ),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              '¡Hola, amiga! tu hormiguita ahorradora esta vigilando tus gastos',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.flash_on),
-            tooltip: 'Simular notificacion Yape',
-            onPressed: _simularNotificacionYape,
+          const SizedBox(width: 12),
+          ClipOval(
+            child: Image.asset(
+              'assets/hormiguita.png',
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(
+                  Icons.favorite,
+                  color: Colors.pink,
+                  size: 40,
+                );
+              },
+            ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _simularCorreo,
-        icon: const Icon(Icons.mail_outline),
-        label: const Text('Simular correo'),
-        backgroundColor: Colors.orange,
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildResumenTarjeta(),
-              const SizedBox(height: 16),
-              _buildSyncCard(),
-              const SizedBox(height: 24),
-              const Text(
-                'Movimientos Recientes',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              _buildMovimientosList(),
-              const SizedBox(height: 24),
-              const Text(
-                'Accesos Rapidos',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 8),
-              _buildModulosGrid(context),
-              const SizedBox(height: 24),
-              if (_ultimaNotificacion != null) _buildUltimaNotificacion(),
-              if (!_permisosNotificaciones) _buildPermisosPendientes(),
-            ],
-          ),
+    );
+  }
+
+  Widget _buildMovimientosList() {
+    if (_transactions.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(8.0),
+        child: Text(
+          'No hay movimientos registrados. Realiza un pago o espera el correo '
+          'bancario; tambien puedes usar "Simular correo" para probar.',
         ),
-      ),
+      );
+    }
+
+    return Column(
+      children: [
+        for (final t in _transactions.take(5))
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade300),
+                boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ListTile(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              leading: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: (t.type == 'egreso'
+                          ? Colors.red
+                          : Colors.green)
+                      .withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  t.type == 'egreso' ? Icons.remove : Icons.add,
+                  color: t.type == 'egreso' ? Colors.red : Colors.green,
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                '${t.category}: S/ ${t.amount.toStringAsFixed(2)}',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+              subtitle: Text(
+                '${t.origin} - ${t.description ?? ""}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+              trailing: PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, size: 20),
+                onSelected: (value) {
+                  if (value == 'hormiga') {
+                    _marcarGastoHormiga(t);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'hormiga',
+                    child: ListTile(
+                      leading: Icon(Icons.label_outline),
+                      title: Text('Gasto hormiga'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -501,39 +571,6 @@ class _InicioScreenState extends State<InicioScreen>
                 child: const Text('Sincronizar'),
               ),
       ),
-    );
-  }
-
-  Widget _buildMovimientosList() {
-    if (_transactions.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(8.0),
-        child: Text(
-          'No hay movimientos registrados. Realiza un pago o espera el correo '
-          'bancario; tambien puedes usar "Simular correo" para probar.',
-        ),
-      );
-    }
-
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _transactions.length > 5 ? 5 : _transactions.length,
-      itemBuilder: (context, index) {
-        final t = _transactions[index];
-        return ListTile(
-          leading: Icon(
-            t.type == 'egreso' ? Icons.remove : Icons.add,
-            color: t.type == 'egreso' ? Colors.red : Colors.green,
-          ),
-          title: Text('${t.category}: S/ ${t.amount.toStringAsFixed(2)}'),
-          subtitle: Text('${t.origin} - ${t.description ?? ""}'),
-          trailing: Icon(
-            t.synced ? Icons.check_circle : Icons.pending,
-            color: t.synced ? Colors.green : Colors.orange,
-          ),
-        );
-      },
     );
   }
 
@@ -679,5 +716,65 @@ class _InicioScreenState extends State<InicioScreen>
         .fold<double>(0.0, (sum, t) => sum + t.amount);
     if (ingresos == 0) return 0;
     return ((ingresos - gastos) / ingresos * 100).clamp(0.0, 100.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Ahorrant'),
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.mail_outline),
+            tooltip: 'Simular correo bancario',
+            onPressed: _simularCorreo,
+          ),
+          IconButton(
+            icon: const Icon(Icons.flash_on),
+            tooltip: 'Simular notificacion Yape',
+            onPressed: _simularNotificacionYape,
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _simularCorreo,
+        icon: const Icon(Icons.mail_outline),
+        label: const Text('Simular correo'),
+        backgroundColor: Colors.orange,
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildGreetingCard(),
+              const SizedBox(height: 16),
+              _buildResumenTarjeta(),
+              const SizedBox(height: 16),
+              _buildSyncCard(),
+              const SizedBox(height: 24),
+              const Text(
+                'Movimientos Recientes',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              _buildMovimientosList(),
+              const SizedBox(height: 24),
+              const Text(
+                'Accesos Rapidos',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              _buildModulosGrid(context),
+              const SizedBox(height: 24),
+              if (_ultimaNotificacion != null) _buildUltimaNotificacion(),
+              if (!_permisosNotificaciones) _buildPermisosPendientes(),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

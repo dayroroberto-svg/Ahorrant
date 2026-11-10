@@ -35,9 +35,9 @@ dependency_overrides:
 flutter:
   uses-material-design: true
 
-  # Assets (si los tienes)
-  # assets:
-  #   - images/apecat.jpg
+  # Assets
+  assets:
+    - assets/hormiguita.png
 
   # Fuentes personalizadas (opcional)
   # fonts:
