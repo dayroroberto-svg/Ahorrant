@@ -117,6 +117,11 @@ class _InicioScreenState extends State<InicioScreen>
 
   Future<void> _onNotificacionDetectada(
       DetectedNotification notificacion) async {
+    debugPrint('[AhorrantFlutter] Notificacion recibida: '
+        'pkg=${notificacion.packageName} '
+        'title="${notificacion.title}" text="${notificacion.text}" '
+        'activo=$_activo mounted=$mounted');
+
     // Evitar procesar la misma notificacion dos veces (stream + cola pendiente).
     // Se compara titulo+texto dentro de una ventana de 10 segundos.
     final clave =
@@ -131,27 +136,52 @@ class _InicioScreenState extends State<InicioScreen>
       final partes = item.split('||');
       return partes.length > 1 && partes[1] == clave;
     });
-    if (duplicado) return;
+    if (duplicado) {
+      debugPrint('[AhorrantFlutter] Duplicado detectado, se ignora');
+      return;
+    }
     _avisosProcesados.add('${ahora.toIso8601String()}||$clave');
     if (_avisosProcesados.length > 50) {
       _avisosProcesados.removeAt(0);
     }
 
     if (!_activo) {
+      debugPrint('[AhorrantFlutter] App en background, se encola');
       _colaEventos.add(notificacion);
       return;
     }
 
-    final monto = _extraerMonto(notificacion.text) ??
-        _extraerMonto(notificacion.title);
-    if (monto == null) return;
+    final rawMonto = _extraerMonto(notificacion.text) ?? _extraerMonto(notificacion.title);
+    debugPrint('[AhorrantFlutter] Monto extraido: $rawMonto');
 
-    if (!mounted) return;
+    if (rawMonto == null) {
+      // No hay monto: mostrar aviso breve y no abrir dialogo.
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.teal,
+          content: Text(
+            'Notificación de ${notificacion.origen} recibida (sin monto)',
+            style: GoogleFonts.fredoka(fontWeight: FontWeight.bold),
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    final monto = rawMonto;
+
+    if (!mounted) {
+      debugPrint('[AhorrantFlutter] Widget no montado, se ignora');
+      return;
+    }
     setState(() {
       _ultimaNotificacion =
           '${notificacion.title} - ${notificacion.text}';
     });
 
+    debugPrint('[AhorrantFlutter] Abriendo dialogo por S/ $monto');
     final tipo = await _mostrarDialogoTipo(monto);
     if (tipo == null) return;
 

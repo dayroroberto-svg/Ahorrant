@@ -162,7 +162,6 @@ class NotificationService {
     final regex = RegExp(r'S\/\.?\s*([\d]+(?:[.,]\d{1,2})?)');
     final match = regex.firstMatch(texto);
     if (match == null) return null;
-
     final montoTexto = (match.group(1) ?? '').replaceAll(',', '.');
     try {
       return double.parse(montoTexto);
