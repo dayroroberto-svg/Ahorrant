@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../models/transaction_model.dart';
 import '../services/database_helper.dart';
+import '../services/gamification_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 
@@ -26,6 +27,7 @@ class _InicioScreenState extends State<InicioScreen>
   double _totalIngresos = 0;
   String? _ultimaNotificacion;
   bool _permisosNotificaciones = false;
+  final List<String> _avisosProcesados = [];
 
   static const List<String> _categoriasEgreso = [
     'gastos hormiga',
@@ -62,6 +64,7 @@ class _InicioScreenState extends State<InicioScreen>
   }
 
   Future<void> _inicializar() async {
+    await GamificationService.instance.inicializar();
     _suscripcion =
         NotificationService.stream.listen(_onNotificacionDetectada);
     await _actualizarPermisos();
@@ -114,6 +117,26 @@ class _InicioScreenState extends State<InicioScreen>
 
   Future<void> _onNotificacionDetectada(
       DetectedNotification notificacion) async {
+    // Evitar procesar la misma notificacion dos veces (stream + cola pendiente).
+    // Se compara titulo+texto dentro de una ventana de 10 segundos.
+    final clave =
+        '${notificacion.title}|${notificacion.text}';
+    final ahora = DateTime.now();
+    _avisosProcesados.removeWhere((item) {
+      final partes = item.split('||');
+      final fecha = DateTime.tryParse(partes[0]) ?? DateTime(2000);
+      return ahora.difference(fecha).inSeconds > 10;
+    });
+    final duplicado = _avisosProcesados.any((item) {
+      final partes = item.split('||');
+      return partes.length > 1 && partes[1] == clave;
+    });
+    if (duplicado) return;
+    _avisosProcesados.add('${ahora.toIso8601String()}||$clave');
+    if (_avisosProcesados.length > 50) {
+      _avisosProcesados.removeAt(0);
+    }
+
     if (!_activo) {
       _colaEventos.add(notificacion);
       return;
@@ -152,6 +175,11 @@ class _InicioScreenState extends State<InicioScreen>
     );
 
     await _dbHelper.insertTransaction(transaccion);
+    // Recompensa por notificaciones de pagos (Yape o Plin)
+    if (notificacion.origen == 'yape' || notificacion.origen == 'plin') {
+      // Award 5 Hormigasoles for each detected payment notification
+      await GamificationService.instance.ganarHormigasoles(5, motivo: '${notificacion.origen} pago detectado');
+    }
     if (!mounted) return;
     await _cargarTransacciones();
     if (!mounted) return;

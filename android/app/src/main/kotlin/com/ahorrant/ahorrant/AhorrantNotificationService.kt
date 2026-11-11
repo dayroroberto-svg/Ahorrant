@@ -96,14 +96,25 @@ class AhorrantNotificationService : NotificationListenerService() {
         Log.d(TAG, "Notification listener conectado")
     }
 
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        Log.w(TAG, "Notification listener desconectado, solicitando reconexion...")
+        // MIUI desconecta el listener; pedir reconexion automatica.
+        requestRebind(android.content.ComponentName(this, javaClass))
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         val statusBarNotification = sbn ?: return
         val packageName = statusBarNotification.packageName
+        Log.d(TAG, "RECIBIDO de '$packageName'")
         val isYape = packageName in YAPE_PACKAGES
         val isEmail = packageName in EMAIL_PACKAGES
         val isBank = packageName in BANK_PACKAGES
 
-        if (!isYape && !isEmail && !isBank) return
+        if (!isYape && !isEmail && !isBank) {
+            Log.d(TAG, "Ignorado (paquete no soportado): '$packageName'")
+            return
+        }
 
         val notification = statusBarNotification.notification ?: return
         val extras = notification.extras ?: return
@@ -148,6 +159,7 @@ class AhorrantNotificationService : NotificationListenerService() {
 
         val context = applicationContext
         enqueue(context, packageName, title, text)
+        Log.d(TAG, "Notificacion encolada -> '$title | $text'")
         MainActivity.notifyFlutter(title, text, System.currentTimeMillis(), packageName)
     }
 

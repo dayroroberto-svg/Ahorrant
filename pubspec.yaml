@@ -22,7 +22,15 @@ dependencies:
 
   # Notificaciones
   firebase_messaging: ^14.8.0  # Notificaciones push (Firebase)
+
+  # Fuentes divertidas
   google_fonts: ^6.2.1
+
+  # Generador de iconos de launcher
+  flutter_launcher_icons: ^0.13.1
+
+  # Pantalla de bienvenida
+  flutter_native_splash: ^2.3.3
 
 dev_dependencies:
   flutter_test:
@@ -40,8 +48,7 @@ flutter:
   assets:
     - assets/hormiguita.png
 
-  # Fuentes personalizadas (opcional)
-  # fonts:
-  #   - family: MyCustomFont
-  #     fonts:
-  #       - asset: fonts/my_custom_font.ttf
+# Configuración de la pantalla de bienvenida
+flutter_native_splash:
+  color: "#ffffff"
+  image: assets/hormiguita.png

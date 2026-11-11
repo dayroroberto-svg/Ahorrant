@@ -24,16 +24,27 @@ class MainActivity : FlutterActivity() {
             timestamp: Long,
             packageName: String
         ) {
+            val ch = channel
+            if (ch == null) {
+                android.util.Log.w("AhorrantNotif", "notifyFlutter: channel es NULL, app en background")
+                return
+            }
+            android.util.Log.d("AhorrantNotif", "notifyFlutter: enviando a Flutter -> '$title | $text'")
             mainHandler.post {
-                channel?.invokeMethod(
-                    "onNotification",
-                    mapOf(
-                        "package" to packageName,
-                        "title" to title,
-                        "text" to text,
-                        "timestamp" to timestamp
+                try {
+                    ch.invokeMethod(
+                        "onNotification",
+                        mapOf(
+                            "package" to packageName,
+                            "title" to title,
+                            "text" to text,
+                            "timestamp" to timestamp
+                        )
                     )
-                )
+                    android.util.Log.d("AhorrantNotif", "notifyFlutter: invokeMethod OK")
+                } catch (e: Exception) {
+                    android.util.Log.e("AhorrantNotif", "notifyFlutter: error -> ${e.message}")
+                }
             }
         }
     }
