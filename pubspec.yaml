@@ -1,0 +1,42 @@
+name: ahorrant
+description: App Ahorrant - Finanzas personales gamificadas para universitarios
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The following adds the Cupertino icons icons.
+  cupertino_icons: ^1.0.6
+
+  # Plugins utilizados en el proyecto
+  http: ^1.2.0        # Para peticiones HTTP al backend
+  shared_preferences: ^2.2.2  # Almacenamiento local
+  sqflite: ^2.2.4     # Base de datos SQLite local
+  path_provider: ^2.1.0 # Rutas de acceso en dispositivo
+
+  # Notificaciones
+  firebase_messaging: ^14.8.0  # Notificaciones push (Firebase)
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+# Para fusos horarios y formateo
+flutter:
+  uses-material-design: true
+
+  # Assets (si los tienes)
+  # assets:
+  #   - images/apecat.jpg
+
+  # Fuentes personalizadas (opcional)
+  # fonts:
+  #   - family: MyCustomFont
+  #     fonts:
+  #       - asset: fonts/my_custom_font.ttf
