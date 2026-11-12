@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' hide Transaction;
+import '../models/goal_model.dart';
 import '../models/transaction_model.dart';
 
 class DatabaseHelper {
@@ -12,6 +13,8 @@ class DatabaseHelper {
   factory DatabaseHelper() => instance;
 
   Database? _database;
+
+  static const int _versionBaseDeDatos = 2;
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -24,11 +27,12 @@ class DatabaseHelper {
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
     String path = join(documentsDirectory.path, 'ahorrant.db');
 
-    // Crear o abrir la base de datos
+    // Crear o abrir la base de datos con versión actualizada
     var db = await openDatabase(
       path,
-      version: 1,
+      version: _versionBaseDeDatos,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
     return db;
   }
@@ -46,6 +50,20 @@ class DatabaseHelper {
         description TEXT,
         synced INTEGER DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+
+    // Tabla de metas
+    await db.execute('''
+      CREATE TABLE goals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        titulo TEXT NOT NULL,
+        descripcion TEXT,
+        montoObjetivo REAL NOT NULL,
+        montoActual REAL DEFAULT 0,
+        categoria TEXT,
+        fechaCreacion TEXT DEFAULT CURRENT_TIMESTAMP,
+        fechaVencimiento TEXT
       )
     ''');
   }
@@ -101,6 +119,54 @@ class DatabaseHelper {
     final db = await instance.database;
     var result = await db.rawQuery('SELECT COUNT(*) FROM transactions');
     return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  // --- Métodos para Metas ---
+
+  // INSERTAR una meta
+  Future<int> insertGoal(Goal goal) async {
+    final db = await instance.database;
+    return await db.insert('goals', goal.toMap());
+  }
+
+  // OBTENER todas las metas
+  Future<List<Goal>> getAllGoals() async {
+    final db = await instance.database;
+    final List<Map<String, dynamic>> maps = await db.query('goals', orderBy: 'fechaCreacion DESC');
+    return List.generate(maps.length, (i) => Goal.fromMap(maps[i]));
+  }
+
+  // ACTUALIZAR una meta (usada para sumar montoActual)
+  Future<int> updateGoal(Goal goal) async {
+    final db = await instance.database;
+    return await db.update(
+      'goals',
+      goal.toMap(),
+      where: 'id = ?',
+      whereArgs: [goal.id],
+    );
+  }
+
+  // ELIMINAR una meta
+  Future<int> deleteGoal(int id) async {
+    final db = await instance.database;
+    return await db.delete(
+      'goals',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // Contar total de metas
+  Future<int> getGoalCount() async {
+    final db = await instance.database;
+    var result = await db.rawQuery('SELECT COUNT(*) FROM goals');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  /// Migrar la base de datos cuando la versión cambie
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    // En esta versión solo añadimos la tabla goals, no hace falta datos existentes
   }
 
   // Cerrar base de datos
