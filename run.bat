@@ -1,76 +1,37 @@
 @echo off
-title Ahorrant - Aplicación Financiera Gamificada
-
-REM Configurar ruta de Flutter
-set FLUTTER_PATH=C:\REA\dist\application\flutter
+title Ahorrant - Aplicacion Financiera Gamificada
 
 echo.
 echo ==========================================
-echo   Ahorrant - Aplicación de Finanzas Personales
+echo   Ahorrant - Aplicacion de Finanzas Personales
 echo ==========================================
 echo.
 
-REM Verificar si Flutter está en la ruta esperada
-if not exist "%FLUTTER_PATH%\bin\flutter" (
-    echo.
-    error level 1
-    echo ERROR: No se encontró Flutter en %FLUTTER_PATH%\bin\flutter
-    echo.
-    echo Por favor:
-    echo   1. Instalar Flutter desde https://flutter.dev/docs/get-started/install
-    echo   2. O ajustar la variable FLUTTER_PATH en este script
-    echo.
-    pause
-    exit /b 1
-)
-
-REM Verificar conexión de dispositivos
-echo.
-echo [1/3] Verificando dispositivos conectados...
-flutter devices >nul 2>&1
+REM Detectar comando flutter
+set FLUTTER_CMD=flutter
+where flutter >nul 2>&1
 if %errorlevel% neq 0 (
-    echo - No se detectaron dispositivos Flutter
-    echo - Asegúrate de tener un dispositivo Android conectado via USB
-    echo - O inicia un emulador de Android
-    echo.
+    if exist "C:\Users\%USERNAME%\develops\flutter_windows_3.47.9-stable\flutter\bin\flutter.bat" (
+        set "FLUTTER_CMD=C:\Users\%USERNAME%\develops\flutter_windows_3.47.9-stable\flutter\bin\flutter.bat"
+    ) else (
+        echo ERROR: No se encontro Flutter en el PATH ni en la ruta por defecto.
+        echo Asegurate de que Flutter este instalado y agregado al PATH del sistema.
+        pause
+        exit /b 1
+    )
 )
 
-REM Ejecutar doctor primero para verificar entorno
+echo [1/3] Verificando dispositivos conectados...
+call %FLUTTER_CMD% devices
+
 echo.
-echo [2/3] Ejecutando flutter doctor...
-call %FLUTTER_PATH%\bin\flutter doctor --quiet 2>&1 | find "✓" | find /v "!" >nul
-if %errorlevel% equ 0 (
-    echo - Entorno básico OK
-) else (
-    echo - Algunas dependencias faltan, ejecuta manualmente: flutter doctor
-)
+echo [2/3] Verificando dependencias...
+call %FLUTTER_CMD% pub get
 
-REM Preguntar si quiere continuar a pesar de advertencias
-echo.
-echo ¿Continuar con flutter run? (s/n)
-set /p respuesta=
-if /i "%respuesta%" neq "s" (
-    echo Cancelado.
-    exit /b 0
-)
-
-REM Ejecutar la aplicación
 echo.
 echo [3/3] Iniciando Ahorrant...
 echo.
-echo Por favor, ten a mano tu dispositivo Android con:
-echo - Depuración USB activada
-echo - Permisos de notificaciones concedidos a la app
-echo.
-echo El primer uso solicitará permisos de notificaciones.
-echo.
-echo Presiona Ctrl+C para cancelar en los próximos 5 segundos...
-timeout /t 5 >nul
-
-echo.
-echo Ejecutando: flutter run
-echo.
-%FLUTTER_PATH%\bin\flutter run
+call %FLUTTER_CMD% run
 
 echo.
 echo ==========================================
