@@ -47,6 +47,14 @@ flutter:
   # Assets
   assets:
     - assets/hormiguita.png
+    - assets/prendas/Hormiga_sin_prendas.png
+    - assets/prendas/Hormiga_con_gorra.png
+    - assets/prendas/Hormiga_con_lentes.png
+    - assets/prendas/Hormiga_con_mochila.png
+    - assets/prendas/Hormiga_lentes_gorra.png
+    - assets/prendas/Hormiga_mochila_gorra.png
+    - assets/prendas/Hormiga_mochila_lentes.png
+    - assets/prendas/Hormiga_lentes_gorra_mochila.png
 
 # Configuración de la pantalla de bienvenida
 flutter_native_splash:

@@ -81,6 +81,47 @@ class _MascotaAnimadaState extends State<MascotaAnimada>
     }
   }
 
+  String _obtenerRutaImagen({
+    required bool tieneSombrero,
+    required bool tieneGafas,
+    required bool tieneMochila,
+  }) {
+    // Lógica para seleccionar la imagen adecuada según los accesorios equipados
+    final listaEquipada = <String>[];
+    if (tieneSombrero) listaEquipada.add('sombrero');
+    if (tieneGafas) listaEquipada.add('gafas');
+    if (tieneMochila) listaEquipada.add('mochila');
+
+    // Orden de prioridad para combinar imágenes
+    if (listaEquipada.isEmpty) {
+      return 'assets/prendas/Hormiga_sin_prendas.png';
+    } else if (listaEquipada.length == 1) {
+      final unico = listaEquipada.first;
+      if (unico == 'sombrero') return 'assets/prendas/Hormiga_con_gorra.png';
+      if (unico == 'gafas') return 'assets/prendas/Hormiga_con_lentes.png';
+      if (unico == 'mochila') return 'assets/prendas/Hormiga_con_mochila.png';
+    } else if (listaEquipada.length == 2) {
+      if (listaEquipada.contains('sombrero') &&
+          listaEquipada.contains('gafas')) {
+        return 'assets/prendas/Hormiga_lentes_gorra.png';
+      }
+      if (listaEquipada.contains('sombrero') &&
+          listaEquipada.contains('mochila')) {
+        return 'assets/prendas/Hormiga_mochila_gorra.png';
+      }
+      if (listaEquipada.contains('gafas') &&
+          listaEquipada.contains('mochila')) {
+        return 'assets/prendas/Hormiga_mochila_lentes.png';
+      }
+    } else {
+      // Los tres accesorios
+      return 'assets/prendas/Hormiga_lentes_gorra_mochila.png';
+    }
+
+    // Fallback a la imagen base
+    return 'assets/prendas/Hormiga_sin_prendas.png';
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -91,6 +132,11 @@ class _MascotaAnimadaState extends State<MascotaAnimada>
         final tieneSombrero = gamif.estaEquipado('sombrero');
         final tieneGafas = gamif.estaEquipado('gafas');
         final tieneMochila = gamif.estaEquipado('mochila');
+        final rutaImagen = _obtenerRutaImagen(
+          tieneSombrero: tieneSombrero,
+          tieneGafas: tieneGafas,
+          tieneMochila: tieneMochila,
+        );
 
         return Column(
           mainAxisSize: MainAxisSize.min,
@@ -135,7 +181,7 @@ class _MascotaAnimadaState extends State<MascotaAnimada>
                       ),
                       child: ClipOval(
                         child: Image.asset(
-                          'assets/hormiguita.png',
+                          rutaImagen,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             return Icon(

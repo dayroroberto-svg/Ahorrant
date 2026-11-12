@@ -4,9 +4,9 @@ class Transaction {
   final DateTime date;
   final String type; // 'ingreso' o 'egreso'
   final String category; // 'gastos hormiga', 'transporte', 'alimentacion', etc.
-  final String origin; // 'yape', 'manual', etc.
   final String? description;
   final bool synced; // Si ya se sincronizó con Supabase
+  final String origin;
 
   const Transaction({
     this.id,
@@ -14,9 +14,9 @@ class Transaction {
     required this.date,
     required this.type,
     required this.category,
-    required this.origin,
     this.description,
     this.synced = false,
+    this.origin = 'manual',
   });
 
   // Copiar la transaccion cambiando solo los campos indicados
@@ -26,9 +26,9 @@ class Transaction {
     DateTime? date,
     String? type,
     String? category,
-    String? origin,
     String? description,
     bool? synced,
+    String? origin,
   }) {
     return Transaction(
       id: id ?? this.id,
@@ -36,9 +36,9 @@ class Transaction {
       date: date ?? this.date,
       type: type ?? this.type,
       category: category ?? this.category,
-      origin: origin ?? this.origin,
       description: description ?? this.description,
       synced: synced ?? this.synced,
+      origin: origin ?? this.origin,
     );
   }
 
@@ -50,9 +50,9 @@ class Transaction {
       'date': date.toIso8601String(),
       'type': type,
       'category': category,
-      'origin': origin,
       'description': description,
       'synced': synced ? 1 : 0,
+      'origin': origin,
     };
   }
 
@@ -64,9 +64,9 @@ class Transaction {
       date: DateTime.parse(map['date'] as String),
       type: map['type'] as String,
       category: map['category'] as String,
-      origin: map['origin'] as String,
       description: map['description'] as String?,
       synced: map['synced'] == 1,
+      origin: map['origin'] as String? ?? 'manual',
     );
   }
 
@@ -80,12 +80,12 @@ class Transaction {
         date == other.date &&
         type == other.type &&
         category == other.category &&
-        origin == other.origin &&
         description == other.description &&
-        synced == other.synced;
+        synced == other.synced &&
+        origin == other.origin;
   }
 
   @override
   int get hashCode =>
-      id.hashCode ^ amount.hashCode ^ date.hashCode ^ type.hashCode ^ category.hashCode ^ origin.hashCode ^ description.hashCode ^ synced.hashCode;
+      id.hashCode ^ amount.hashCode ^ date.hashCode ^ type.hashCode ^ category.hashCode ^ description.hashCode ^ synced.hashCode ^ origin.hashCode;
 }

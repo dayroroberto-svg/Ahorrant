@@ -30,11 +30,9 @@ class _InicioScreenState extends State<InicioScreen>
   final List<String> _avisosProcesados = [];
 
   static const List<String> _categoriasEgreso = [
-    'gastos hormiga',
+    'gasto',
     'necesario',
-    'alimentacion',
-    'transporte',
-    'entretenimiento',
+    'pasaje',
     'otro',
   ];
 
@@ -161,7 +159,7 @@ class _InicioScreenState extends State<InicioScreen>
         SnackBar(
           backgroundColor: AppColors.teal,
           content: Text(
-            'Notificación de ${notificacion.origen} recibida (sin monto)',
+            'Notificación recibida (sin monto)',
             style: GoogleFonts.fredoka(fontWeight: FontWeight.bold),
           ),
           duration: const Duration(seconds: 3),
@@ -199,17 +197,11 @@ class _InicioScreenState extends State<InicioScreen>
       date: DateTime.now(),
       type: tipo,
       category: categoria,
-      origin: notificacion.origen,
       description: '${notificacion.title}: ${notificacion.text}',
       synced: false,
     );
 
     await _dbHelper.insertTransaction(transaccion);
-    // Recompensa por notificaciones de pagos (Yape o Plin)
-    if (notificacion.origen == 'yape' || notificacion.origen == 'plin') {
-      // Award 5 Hormigasoles for each detected payment notification
-      await GamificationService.instance.ganarHormigasoles(5, motivo: '${notificacion.origen} pago detectado');
-    }
     if (!mounted) return;
     await _cargarTransacciones();
     if (!mounted) return;
@@ -406,20 +398,8 @@ class _InicioScreenState extends State<InicioScreen>
   }
 
   String _etiquetaCategoria(String categoria) {
-    switch (categoria) {
-      case 'gastos hormiga':
-        return 'Gasto hormiga 🐜';
-      case 'necesario':
-        return 'Necesario';
-      case 'alimentacion':
-        return 'Alimentación';
-      case 'transporte':
-        return 'Transporte';
-      case 'entretenimiento':
-        return 'Entretenimiento';
-      default:
-        return 'Otro';
-    }
+    if (categoria == 'otro') return 'Otro';
+    return categoria;
   }
 
   IconData _iconoPorCategoria(String categoria) {
@@ -428,12 +408,10 @@ class _InicioScreenState extends State<InicioScreen>
         return Icons.pest_control_rounded;
       case 'necesario':
         return Icons.check_circle_outline_rounded;
-      case 'alimentacion':
-        return Icons.restaurant_rounded;
-      case 'transporte':
+      case 'gasto':
+        return Icons.money_off_rounded;
+      case 'pasaje':
         return Icons.directions_bus_rounded;
-      case 'entretenimiento':
-        return Icons.sports_esports_rounded;
       case 'ingreso':
         return Icons.savings_rounded;
       default:
@@ -606,7 +584,7 @@ class _InicioScreenState extends State<InicioScreen>
                 _detalleFila(
                   icono: Icons.account_balance_wallet_rounded,
                   titulo: 'Origen del Registro',
-                  valor: t.origin.toUpperCase(),
+                  valor: 'Manual',
                 ),
                 const Divider(height: 16),
                 _detalleFila(
@@ -634,9 +612,10 @@ class _InicioScreenState extends State<InicioScreen>
                       ),
                       elevation: 0,
                     ),
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.pop(context);
-                      _marcarGastoHormiga(t);
+                      await _marcarGastoHormiga(t);
+                      await GamificationService.instance.registrarGastoHormiga();
                     },
                     icon: const Icon(Icons.pest_control_rounded),
                     label: Text(
@@ -1102,14 +1081,14 @@ class _InicioScreenState extends State<InicioScreen>
                                     color: AppColors.softCyan,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: Text(
-                                    t.origin.toUpperCase(),
-                                    style: GoogleFonts.fredoka(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.cyan,
+child: Text(
+                                      'MANUAL',
+                                      style: GoogleFonts.fredoka(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.cyan,
+                                      ),
                                     ),
-                                  ),
                                 ),
                               ],
                             ),
@@ -1245,10 +1224,219 @@ class _InicioScreenState extends State<InicioScreen>
     );
   }
 
-  double _calcularHormigasoles() {
-    final hormiga =
-        _transactions.where((t) => t.category == 'gastos hormiga').length;
-    return (hormiga * 5).toDouble();
+  double _calcularHormigasoles() =>
+      GamificationService.instance.hormigasoles.toDouble();
+
+  /// Muestra un formulario para agregar un movimiento manual
+  Future<void> _mostrarFormularioManual() async {
+    final _controlMonto = TextEditingController();
+    final _controlMotivo = TextEditingController();
+    _controlMotivo.text = '';
+    String _selectTipo = 'egreso';
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SingleChildScrollView(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Registrar Movimiento',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkBlue,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Monto (S/)',
+                  style: GoogleFonts.fredoka(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textDark,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _controlMonto,
+                  decoration: InputDecoration(
+                    hintText: 'Ej: 15.50',
+                    labelStyle: GoogleFonts.fredoka(
+                      fontSize: 14,
+                      color: AppColors.textDark,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  style: GoogleFonts.fredoka(
+                    fontSize: 14,
+                    color: AppColors.textDark,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Tipo',
+                  style: GoogleFonts.fredoka(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textDark,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilterChip(
+                        label: Text(
+                          'Ingreso',
+                          style: GoogleFonts.fredoka(
+                            fontWeight: FontWeight.bold,
+                            color: _selectTipo == 'ingreso'
+                                ? AppColors.darkBlue
+                                : AppColors.textDark,
+                          ),
+                        ),
+                        selected: _selectTipo == 'ingreso',
+                        onSelected: (selected) => setState(() => _selectTipo = 'ingreso'),
+                        selectedColor: AppColors.softTeal,
+                        checkmarkColor: AppColors.darkBlue,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilterChip(
+                        label: Text(
+                          'Egreso',
+                          style: GoogleFonts.fredoka(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textDark,
+                          ),
+                        ),
+                        selected: _selectTipo == 'egreso',
+                        onSelected: (selected) => setState(() => _selectTipo = 'egreso'),
+                        selectedColor: AppColors.expenseRed,
+                        checkmarkColor: AppColors.darkBlue,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Motivo',
+                  style: GoogleFonts.fredoka(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textDark,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _controlMotivo,
+                  decoration: InputDecoration(
+                    hintText: 'Ej: Comida, Transporte, Estudios',
+                    labelStyle: GoogleFonts.fredoka(
+                      fontSize: 14,
+                      color: AppColors.textDark,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  style: GoogleFonts.fredoka(
+                    fontSize: 14,
+                    color: AppColors.textDark,
+                  ),
+                ),
+                const SizedBox(height: 30),
+                ElevatedButton(
+                  onPressed: () async {
+                    final montoTexto = _controlMonto.text;
+                    if (montoTexto.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Por favor ingrese un monto'),
+                          backgroundColor: AppColors.yellow,
+                        ),
+                      );
+                      return;
+                    }
+                    final montoDouble = double.tryParse(montoTexto);
+                    if (montoDouble == null || montoDouble <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Monto inválido'),
+                          backgroundColor: AppColors.yellow,
+                        ),
+                      );
+                      return;
+                    }
+                    final transaccion = Transaction(
+                      amount: montoDouble,
+                      date: DateTime.now(),
+                      type: _selectTipo,
+                      category: _controlMotivo.text,
+                      description: 'Movimiento manual',
+                      synced: false,
+                    );
+                    await _dbHelper.insertTransaction(transaccion);
+                    // Registrar en gamificación si es gasto hormiga
+                    // Comprobamos si el motivo contiene "hormiga" (case-insensitive)
+                    final categoriaLower = transaccion.category.toLowerCase();
+                    if (categoriaLower.contains('hormiga') ||
+                        categoriaLower == 'gasto' ||
+                        categoriaLower == 'gastos') {
+                      await GamificationService.instance.registrarGastoHormiga();
+                    }
+                    _cargarTransacciones();
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Movimiento registrado correctamente'),
+                        backgroundColor: AppColors.teal,
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.darkBlue,
+                    foregroundColor: AppColors.white,
+                  ),
+                  child: Text(
+                    'Guardar',
+                    style: GoogleFonts.fredoka(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Cancelar',
+                    style: GoogleFonts.fredoka(
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   double _calcularProgresoMetas() {
@@ -1271,49 +1459,15 @@ class _InicioScreenState extends State<InicioScreen>
         automaticallyImplyLeading: false,
         centerTitle: true,
         title: const AhorrantLogoTitle(fontSize: 24),
-        actions: [
-          IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.softCyan,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.cyan.withValues(alpha: 0.5)),
-              ),
-              child: const Icon(
-                Icons.mail_outline_rounded,
-                size: 20,
-                color: AppColors.teal,
-              ),
-            ),
-            tooltip: 'Simular correo bancario',
-            onPressed: _simularCorreo,
-          ),
-          IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.softYellow,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.yellow),
-              ),
-              child: const Icon(
-                Icons.flash_on_rounded,
-                size: 20,
-                color: AppColors.darkBlue,
-              ),
-            ),
-            tooltip: 'Simular notificación Yape',
-            onPressed: _simularNotificacionYape,
-          ),
+actions: [
           const SizedBox(width: 8),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _simularNotificacionYape,
-        icon: const Icon(Icons.flash_on_rounded, color: AppColors.darkBlue),
+        onPressed: () => _mostrarFormularioManual(),
+        icon: const Icon(Icons.add_rounded, color: AppColors.darkBlue),
         label: Text(
-          'Simular Yape',
+          'Agregar Movimiento',
           style: GoogleFonts.fredoka(
             fontWeight: FontWeight.bold,
             color: AppColors.darkBlue,
@@ -1357,7 +1511,6 @@ class _InicioScreenState extends State<InicioScreen>
             _buildMovimientosList(),
             const SizedBox(height: 20),
             if (_ultimaNotificacion != null) _buildUltimaNotificacion(),
-            if (!_permisosNotificaciones) _buildPermisosPendientes(),
             const SizedBox(height: 70),
           ],
         ),
