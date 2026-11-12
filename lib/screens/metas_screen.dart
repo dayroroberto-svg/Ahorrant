@@ -25,11 +25,20 @@ class _MetasScreenState extends State<MetasScreen> {
   }
 
   Future<void> _cargarMetas() async {
-    final metas = await _dbHelper.getAllGoals();
-    setState(() {
-      _metas = metas;
-      _cargando = false;
-    });
+    try {
+      final metas = await _dbHelper.getAllGoals();
+      if (!mounted) return;
+      setState(() {
+        _metas = metas;
+        _cargando = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _cargando = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al cargar metas'), backgroundColor: AppColors.yellow),
+      );
+    }
   }
 
   // Controlador para el formulario de crear meta
@@ -38,117 +47,52 @@ class _MetasScreenState extends State<MetasScreen> {
   final _montoObjetivoController = TextEditingController();
   final _categoriaController = TextEditingController();
 
-  // Mostrar diálogo para crear nueva meta
-  Future<void> _mostrarDialogoCrearMeta() async {
+// Mostrar diálogo para crear nueva meta
+  // Retorna true si se creó la meta, false si canceló
+  Future<bool> _mostrarDialogoCrearMeta() async {
     // Limpiar controladores
-    _tituloController.clear();
-    _descripcionController.clear();
-    _montoObjetivoController.clear();
-    _categoriaController.clear();
+    _tituloCtrl.clear(); _descCtrl.clear(); _montoCtrl.clear(); _categCtrl.clear();
 
-    return showDialog<void>(
+    final result = await showDialog<bool>(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            'Crear Nueva Meta',
-            style: GoogleFonts.fredoka(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.darkBlue,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                // Título
-                TextField(
-                  controller: _tituloController,
-                  decoration: InputDecoration(
-                    labelText: 'Título de la meta',
-                    labelStyle: GoogleFonts.fredoka(fontSize: 14),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  style: GoogleFonts.fredoka(fontSize: 14),
-                  // Remove validator for now
-                ),
-                const SizedBox(height: 12),
-
-                // Descripción
-                TextField(
-                  controller: _descripcionController,
-                  decoration: InputDecoration(
-                    labelText: 'Descripción (opcional)',
-                    labelStyle: GoogleFonts.fredoka(fontSize: 14),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  style: GoogleFonts.fredoka(fontSize: 14),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 12),
-
-                // Monto objetivo
-                TextField(
-                  controller: _montoObjetivoController,
-                  decoration: InputDecoration(
-                    labelText: 'Monto objetivo (S/)',
-                    labelStyle: GoogleFonts.fredoka(fontSize: 14),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    hintText: 'Ej: 500.00',
-                  ),
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
-                  style: GoogleFonts.fredoka(fontSize: 14),
-                  // Remove validator for now
-                ),
-                const SizedBox(height: 12),
-
-                // Categoría
-                TextField(
-                  controller: _categoriaController,
-                  decoration: InputDecoration(
-                    labelText: 'Categoría (ej: ahorro, viaje, educación)',
-                    labelStyle: GoogleFonts.fredoka(fontSize: 14),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  style: GoogleFonts.fredoka(fontSize: 14),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cancelar',
-                style: GoogleFonts.fredoka(
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final titulo = _tituloController.text.trim();
-                final descripcion = _descripcionController.text.trim();
-                final montoObjetivoStr = _montoObjetivoController.text.trim();
-                final categoria = _categoriaController.text.trim();
-
-                if (titulo.isEmpty || montoObjetivoStr.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Por favor completa los campos obligatorios'),
-                      backgroundColor: AppColors.yellow,
-                    ),
-                  );
-                  return;
-                }
+      builder: (context) => AlertDialog(
+        title: Text('Crear Nueva Meta', style: GoogleFonts.fredoka(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkBlue)),
+        content: SingleChildScrollView(
+          child: Column(children: [
+            TextField(controller: _tituloCtrl, decoration: InputDecoration(labelText: 'Título de la meta', labelStyle: GoogleFonts.fredoka(fontSize: 14), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), style: GoogleFonts.fredoka(fontSize: 14)),
+            const SizedBox(height: 12),
+            TextField(controller: _descCtrl, decoration: InputDecoration(labelText: 'Descripción (opcional)', labelStyle: GoogleFonts.fredoka(fontSize: 14), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), style: GoogleFonts.fredoka(fontSize: 14), maxLines: 2),
+            const SizedBox(height: 12),
+            TextField(controller: _montoCtrl, decoration: InputDecoration(labelText: 'Monto objetivo (S/)', labelStyle: GoogleFonts.fredoka(fontSize: 14), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), hintText: 'Ej: 500.00', keyboardType: TextInputType.numberWithOptions(decimal: true), style: GoogleFonts.fredoka(fontSize: 14)),
+            const SizedBox(height: 12),
+            TextField(controller: _categCtrl, decoration: InputDecoration(labelText: 'Categoría (ej: ahorro, viaje)', labelStyle: GoogleFonts.fredoka(fontSize: 14), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), style: GoogleFonts.fredoka(fontSize: 14)),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text('Cancelar', style: GoogleFonts.fredoka(color: AppColors.textMuted))),
+          ElevatedButton(onPressed: () async {
+            final t = _tituloCtrl.text.trim();
+            final d = _descCtrl.text.trim();
+            final mS = _montoCtrl.text.trim();
+            final c = _categCtrl.text.trim();
+            if (t.isEmpty || mS.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor completa los campos obligatorios'), backgroundColor: AppColors.yellow));
+              return;
+            }
+            final mO = double.parse(mS);
+            final meta = Goal(titulo: t, descripcion: d, montoObjetivo: mO, montoActual: 0.0, categoria: c.isNotEmpty ? c : 'general');
+            try {
+              await _dbHelper.insertGoal(meta);
+              Navigator.of(context).pop(true);
+            } catch (_) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error al crear la meta'), backgroundColor: AppColors.yellow));
+            }
+          }, child: Text('Crear', style: GoogleFonts.fredoka(fontWeight: FontWeight.bold)))
+        ],
+      ),
+    ),
+    ),
+  )
 
                 final montoObjetivo = double.parse(montoObjetivoStr);
 
@@ -358,7 +302,10 @@ class _MetasScreenState extends State<MetasScreen> {
           children: [
             // Botón para crear nueva meta
             ElevatedButton.icon(
-              onPressed: _mostrarDialogoCrearMeta,
+              onPressed: () async {
+                final creado = await _mostrarDialogoCrearMeta();
+                if (creado) await _cargarMetas();
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.darkBlue,
                 foregroundColor: AppColors.white,
