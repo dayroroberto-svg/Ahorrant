@@ -747,12 +747,12 @@ class InicioScreenState extends State<InicioScreen>
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: Color(0xFFE2C09C), // Color arena medio
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.cyan, width: 2),
+        border: Border.all(color: AppColors.turquesa, width: 2),
         boxShadow: [
           BoxShadow(
-            color: AppColors.cyan.withValues(alpha: 0.18),
+            color: AppColors.turquesa.withValues(alpha: 0.18),
             blurRadius: 14,
             offset: const Offset(0, 5),
           ),
@@ -760,6 +760,33 @@ class InicioScreenState extends State<InicioScreen>
       ),
       child: Row(
         children: [
+          // Imagen Hormiga_barra.png a la izquierda
+          Container(
+            width: 80,
+            height: 76,
+            decoration: BoxDecoration(
+              color: AppColors.blanco,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.asset(
+                'assets/Hormiga_barra.png',
+                fit: BoxFit.cover,
+                width: 80,
+                height: 76,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(
+                    Icons.pest_control_rounded,
+                    color: AppColors.azulMarino,
+                    size: 42,
+                  );
+                },
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          // Contenido central
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -805,30 +832,25 @@ class InicioScreenState extends State<InicioScreen>
               ],
             ),
           ),
-          const SizedBox(width: 14),
+          // Imagen Cabeza_barra.png a la derecha
           Container(
-            width: 76,
+            width: 80,
             height: 76,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.softYellow,
-              border: Border.all(color: AppColors.yellow, width: 3),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.yellow.withValues(alpha: 0.35),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              color: AppColors.blanco,
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: ClipOval(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
               child: Image.asset(
-                'assets/hormiguita.png',
+                'assets/Cabeza_barra.png',
                 fit: BoxFit.cover,
+                width: 80,
+                height: 76,
                 errorBuilder: (context, error, stackTrace) {
                   return const Icon(
-                    Icons.pest_control_rounded,
-                    color: AppColors.teal,
+                    Icons.person_rounded,
+                    color: AppColors.azulMarino,
                     size: 42,
                   );
                 },

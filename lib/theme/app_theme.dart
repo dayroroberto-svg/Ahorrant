@@ -2,13 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
-  // Los colores principales solicitados por el usuario:
+  // Paleta de colores principal
+  static const Color cyanPrincipal = Color(0xFF4EBCE8);
+  static const Color turquesa = Color(0xFF00AFA9);
+  static const Color dorado = Color(0xFFFFC400);
+  static const Color azulMarino = Color(0xFF0D3559);
+  static const Color blanco = Color(0xFFFFFFFF);
+  // Alias para compatibilidad con código existente
+  static const Color white = Color(0xFFFFFFFF);
+  static const Color cremaSuave = Color(0xFFF9E8);
+  static const Color amarilloPastel = Color(0xFFE29A);
+  static const Color rojo = Color(0xFFF44336);
+  static const Color verde = Color(0xFF4CAF50);
+
+  // Colores complementarios - mantenidos para compatibilidad
   static const Color cyan = Color(0xFF4EBCE8);
   static const Color teal = Color(0xFF00AFA9);
   static const Color yellow = Color(0xFFFFC400);
-  static const Color white = Color(0xFFFFFFFF);
-
-  // Colores complementarios para legibilidad y diseño:
   static const Color darkBlue = Color(0xFF0D3559);
   static const Color antBlue = Color(0xFF0A638B);
   static const Color background = Color(0xFFF3F9FA);
@@ -28,22 +38,28 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.teal,
-        primary: AppColors.teal,
-        secondary: AppColors.yellow,
-        tertiary: AppColors.cyan,
-        surface: AppColors.cardBg,
+        seedColor: AppColors.cyanPrincipal,
+        primary: AppColors.cyanPrincipal,
+        secondary: AppColors.turquesa,
+        tertiary: AppColors.dorado,
+        surface: AppColors.blanco,
       ),
-      scaffoldBackgroundColor: AppColors.background,
+      scaffoldBackgroundColor: AppColors.cremaSuave,
       textTheme: baseTextTheme.apply(
-        bodyColor: AppColors.textDark,
-        displayColor: AppColors.darkBlue,
+        bodyColor: AppColors.azulMarino,
+        displayColor: AppColors.azulMarino,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        iconTheme: IconThemeData(color: AppColors.darkBlue),
+        iconTheme: IconThemeData(color: AppColors.azulMarino),
+      ),
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: AppColors.turquesa,
+        elevation: 0,
+        selectedItemColor: AppColors.blanco,
+        unselectedItemColor: AppColors.azulMarino,
       ),
     );
   }
@@ -100,4 +116,3 @@ class AhorrantLogoTitle extends StatelessWidget {
     );
   }
 }
-
