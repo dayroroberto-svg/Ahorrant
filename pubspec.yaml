@@ -31,6 +31,7 @@ dependencies:
 
   # Pantalla de bienvenida
   flutter_native_splash: ^2.3.3
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:
