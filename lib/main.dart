@@ -36,19 +36,39 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  static const List<Widget> _widgetOptions = <Widget>[
-    InicioScreen(),
-    HormigueroScreen(),
-    ArmarioScreen(),
-    MetasScreen(),
-    ClasesScreen(),
-    ProgresoScreen(),
+  final GlobalKey<InicioScreenState> _inicioKey =
+      GlobalKey<InicioScreenState>();
+  final GlobalKey<MetasScreenState> _metasKey =
+      GlobalKey<MetasScreenState>();
+  final GlobalKey<ProgresoScreenState> _progresoKey =
+      GlobalKey<ProgresoScreenState>();
+
+  late final List<Widget> _widgetOptions = <Widget>[
+    InicioScreen(key: _inicioKey),
+    const HormigueroScreen(),
+    const ArmarioScreen(),
+    MetasScreen(key: _metasKey),
+    const ClasesScreen(),
+    ProgresoScreen(key: _progresoKey),
   ];
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
+
+    // Recarga los modulos que dependen de los datos guardados
+    switch (index) {
+      case 0:
+        _inicioKey.currentState?.recargar();
+        break;
+      case 3:
+        _metasKey.currentState?.recargar();
+        break;
+      case 5:
+        _progresoKey.currentState?.recargar();
+        break;
+    }
   }
 
   @override

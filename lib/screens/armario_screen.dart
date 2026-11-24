@@ -5,8 +5,20 @@ import '../services/gamification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/mascota_animada.dart';
 
-class ArmarioScreen extends StatelessWidget {
+class ArmarioScreen extends StatefulWidget {
   const ArmarioScreen({super.key});
+
+  @override
+  State<ArmarioScreen> createState() => _ArmarioScreenState();
+}
+
+class _ArmarioScreenState extends State<ArmarioScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Carga el inventario/equipados guardados en disco
+    GamificationService.instance.inicializar();
+  }
 
   @override
   Widget build(BuildContext context) {

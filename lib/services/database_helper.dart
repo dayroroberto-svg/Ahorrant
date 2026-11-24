@@ -14,7 +14,7 @@ class DatabaseHelper {
 
   Database? _database;
 
-  static const int _versionBaseDeDatos = 2;
+  static const int _versionBaseDeDatos = 3;
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -166,7 +166,22 @@ class DatabaseHelper {
 
   /// Migrar la base de datos cuando la versión cambie
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // En esta versión solo añadimos la tabla goals, no hace falta datos existentes
+    // Ejecutar creación de tabla goals si no existe (migración para usuarios que venían de versiones anteriores)
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS goals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        titulo TEXT NOT NULL,
+        descripcion TEXT,
+        montoObjetivo REAL NOT NULL,
+        montoActual REAL DEFAULT 0,
+        categoria TEXT,
+        fechaCreacion TEXT DEFAULT CURRENT_TIMESTAMP,
+        fechaVencimiento TEXT
+      )
+    ''');
+    
+    // Si la tabla goals ya existía pero con esquema antiguo, no hace falta alterar aquí
+    // la tabla ya será usada tal como quedó creada en _onCreate o en upgrades previos
   }
 
   // Cerrar base de datos

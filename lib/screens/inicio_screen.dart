@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../models/goal_model.dart';
 import '../models/transaction_model.dart';
 import '../services/database_helper.dart';
 import '../services/gamification_service.dart';
@@ -12,10 +13,10 @@ class InicioScreen extends StatefulWidget {
   const InicioScreen({super.key});
 
   @override
-  State<InicioScreen> createState() => _InicioScreenState();
+  State<InicioScreen> createState() => InicioScreenState();
 }
 
-class _InicioScreenState extends State<InicioScreen>
+class InicioScreenState extends State<InicioScreen>
     with WidgetsBindingObserver {
   late final DatabaseHelper _dbHelper;
   StreamSubscription<DetectedNotification>? _suscripcion;
@@ -23,6 +24,7 @@ class _InicioScreenState extends State<InicioScreen>
   bool _activo = true;
 
   List<Transaction> _transactions = [];
+  List<Goal> _metas = [];
   double _totalGastos = 0;
   double _totalIngresos = 0;
   String? _ultimaNotificacion;
@@ -67,7 +69,14 @@ class _InicioScreenState extends State<InicioScreen>
         NotificationService.stream.listen(_onNotificacionDetectada);
     await _actualizarPermisos();
     await _cargarTransacciones();
+    await _cargarMetas();
     await _procesarPendientesNativas();
+  }
+
+  /// Recarga los datos locales (transacciones y metas).
+  Future<void> recargar() async {
+    await _cargarTransacciones();
+    await _cargarMetas();
   }
 
   Future<void> _actualizarPermisos() async {
@@ -105,6 +114,26 @@ class _InicioScreenState extends State<InicioScreen>
     _totalGastos = gastos;
     _totalIngresos = ingresos;
   }
+
+  /// Carga las metas creadas por el usuario (modulo Metas).
+  Future<void> _cargarMetas() async {
+    try {
+      final metas = await _dbHelper.getAllGoals();
+      if (!mounted) return;
+      setState(() {
+        _metas = metas;
+      });
+    } catch (e) {
+      debugPrint('Error al cargar metas en Inicio: $e');
+    }
+  }
+
+  /// Numero total de metas creadas por el usuario.
+  int get _cantidadMetas => _metas.length;
+
+  /// Numero de metas ya completadas.
+  int get _metasCompletadas =>
+      _metas.where((m) => m.estaCompleta).length;
 
   Future<void> _procesarPendientesNativas() async {
     final pendientes = await NotificationService.obtenerPendientes();
@@ -210,7 +239,7 @@ class _InicioScreenState extends State<InicioScreen>
       SnackBar(
         backgroundColor: AppColors.teal,
         content: Text(
-          '${tipo == 'ingreso' ? 'Ingreso' : 'Gasto'} registrado: S/ ${monto.toStringAsFixed(2)} - ${_etiquetaCategoria(categoria)}',
+          '${tipo == 'ingreso' ? 'Ingreso de dinero' : 'Gasto Hormiga'} registrado: S/ ${monto.toStringAsFixed(2)} - ${_etiquetaCategoria(categoria)}',
           style: GoogleFonts.fredoka(fontWeight: FontWeight.bold),
         ),
         duration: const Duration(seconds: 2),
@@ -268,7 +297,7 @@ class _InicioScreenState extends State<InicioScreen>
               onPressed: () => Navigator.pop(context, 'ingreso'),
               icon: const Icon(Icons.add_circle_outline, color: AppColors.teal),
               label: Text(
-                'Ingreso',
+                'Ingreso de dinero',
                 style: GoogleFonts.fredoka(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -280,7 +309,7 @@ class _InicioScreenState extends State<InicioScreen>
               onPressed: () => Navigator.pop(context, 'egreso'),
               icon: const Icon(Icons.remove_circle_outline, color: AppColors.expenseRed),
               label: Text(
-                'Egreso',
+                'Gasto Hormiga',
                 style: GoogleFonts.fredoka(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -530,7 +559,7 @@ class _InicioScreenState extends State<InicioScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            esEgreso ? 'Egreso / Gasto' : 'Ingreso',
+                            esEgreso ? 'Gasto Hormiga' : 'Ingreso de dinero',
                             style: GoogleFonts.fredoka(
                               fontSize: 13,
                               color: esEgreso
@@ -894,13 +923,45 @@ class _InicioScreenState extends State<InicioScreen>
               ),
               _buildResumenItem(
                 icon: Icons.flag_rounded,
-                label: 'Metas',
-                amount: _calcularProgresoMetas(),
+                label: _cantidadMetas == 0
+                    ? 'Metas (sin metas)'
+                    : 'Metas ($_metasCompletadas de $_cantidadMetas listas)',
+                amount: _cantidadMetas.toDouble(),
                 color: AppColors.cyan,
                 bgColor: AppColors.softCyan,
-                esPorcentaje: true,
+                esContador: true,
               ),
             ],
+          ),
+          const SizedBox(height: 14),
+          // Balance neto del periodo
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.softCyan,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Balance neto',
+                  style: GoogleFonts.fredoka(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textDark,
+                  ),
+                ),
+                Text(
+                  'S/ ${(_totalIngresos - _totalGastos).toStringAsFixed(2)}  ·  ${_porcentajeAhorro.toStringAsFixed(0)}% ahorrado',
+                  style: GoogleFonts.fredoka(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkBlue,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -915,12 +976,15 @@ class _InicioScreenState extends State<InicioScreen>
     required Color bgColor,
     bool esPorcentaje = false,
     bool esMonedaVirtual = false,
+    bool esContador = false,
   }) {
     String formattedAmount = 'S/ ${amount.toStringAsFixed(2)}';
     if (esPorcentaje) {
       formattedAmount = '${amount.toStringAsFixed(0)}%';
     } else if (esMonedaVirtual) {
       formattedAmount = '${amount.toInt()} HS';
+    } else if (esContador) {
+      formattedAmount = '${amount.toInt()}';
     }
 
     return Expanded(
@@ -991,17 +1055,17 @@ class _InicioScreenState extends State<InicioScreen>
             ),
             const SizedBox(height: 4),
             Text(
-              'Realiza un pago con Yape o presiona "Simular" arriba para registrar tu primer gasto.',
+              'Agrega un movimiento para que aparezca aquí. ¡Tu historial se mostrará en esta sección!',
               textAlign: TextAlign.center,
               style: GoogleFonts.fredoka(
                 fontSize: 13,
                 color: AppColors.textMuted,
               ),
-            ),
-          ],
-        ),
-      );
-    }
+          ),
+        ],
+      ),
+    );
+  }
 
     return Column(
       children: [
@@ -1240,200 +1304,212 @@ child: Text(
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
-        return SingleChildScrollView(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Registrar Movimiento',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.darkBlue,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Monto (S/)',
-                  style: GoogleFonts.fredoka(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textDark,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _controlMonto,
-                  decoration: InputDecoration(
-                    hintText: 'Ej: 15.50',
-                    labelStyle: GoogleFonts.fredoka(
-                      fontSize: 14,
-                      color: AppColors.textDark,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
-                  style: GoogleFonts.fredoka(
-                    fontSize: 14,
-                    color: AppColors.textDark,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Tipo',
-                  style: GoogleFonts.fredoka(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textDark,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
+      builder: (sheetContext) {
+        // El bottom sheet vive en su propia ruta, por lo que el setState del
+        // State padre no lo redibuja. StatefulBuilder permite reconstruir
+        // solo el formulario y reflejar al instante el cambio de "Tipo".
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: FilterChip(
-                        label: Text(
-                          'Ingreso',
-                          style: GoogleFonts.fredoka(
-                            fontWeight: FontWeight.bold,
-                            color: _selectTipo == 'ingreso'
-                                ? AppColors.darkBlue
-                                : AppColors.textDark,
-                          ),
-                        ),
-                        selected: _selectTipo == 'ingreso',
-                        onSelected: (selected) => setState(() => _selectTipo = 'ingreso'),
-                        selectedColor: AppColors.softTeal,
-                        checkmarkColor: AppColors.darkBlue,
+                    const Text(
+                      'Registrar Movimiento',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.darkBlue,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilterChip(
-                        label: Text(
-                          'Egreso',
-                          style: GoogleFonts.fredoka(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textDark,
+                    const SizedBox(height: 20),
+                    Text(
+                      'Monto (S/)',
+                      style: GoogleFonts.fredoka(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _controlMonto,
+                      decoration: InputDecoration(
+                        hintText: 'Ej: 15.50',
+                        labelStyle: GoogleFonts.fredoka(
+                          fontSize: 14,
+                          color: AppColors.textDark,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      style: GoogleFonts.fredoka(
+                        fontSize: 14,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Tipo',
+                      style: GoogleFonts.fredoka(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilterChip(
+                            label: Text(
+'Ingreso de dinero',
+                              style: GoogleFonts.fredoka(
+                                fontWeight: FontWeight.bold,
+                                color: _selectTipo == 'ingreso'
+                                    ? AppColors.darkBlue
+                                    : AppColors.textDark,
+                              ),
+                            ),
+                            selected: _selectTipo == 'ingreso',
+                            onSelected: (selected) =>
+                                setSheetState(() => _selectTipo = 'ingreso'),
+                            selectedColor: AppColors.softTeal,
+                            checkmarkColor: AppColors.darkBlue,
                           ),
                         ),
-                        selected: _selectTipo == 'egreso',
-                        onSelected: (selected) => setState(() => _selectTipo = 'egreso'),
-                        selectedColor: AppColors.expenseRed,
-                        checkmarkColor: AppColors.darkBlue,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilterChip(
+                            label: Text(
+                              'Gasto Hormiga',
+                              style: GoogleFonts.fredoka(
+                                fontWeight: FontWeight.bold,
+                                color: _selectTipo == 'egreso'
+                                    ? AppColors.white
+                                    : AppColors.textDark,
+                              ),
+                            ),
+                            selected: _selectTipo == 'egreso',
+                            onSelected: (selected) =>
+                                setSheetState(() => _selectTipo = 'egreso'),
+                            selectedColor: AppColors.expenseRed,
+                            checkmarkColor: AppColors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Motivo',
+                      style: GoogleFonts.fredoka(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _controlMotivo,
+                      decoration: InputDecoration(
+                        hintText: 'Ej: Comida, Transporte, Estudios',
+                        labelStyle: GoogleFonts.fredoka(
+                          fontSize: 14,
+                          color: AppColors.textDark,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      style: GoogleFonts.fredoka(
+                        fontSize: 14,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final montoTexto = _controlMonto.text;
+                        if (montoTexto.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Por favor ingrese un monto'),
+                              backgroundColor: AppColors.yellow,
+                            ),
+                          );
+                          return;
+                        }
+                        final montoDouble = double.tryParse(montoTexto);
+                        if (montoDouble == null || montoDouble <= 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Monto inválido'),
+                              backgroundColor: AppColors.yellow,
+                            ),
+                          );
+                          return;
+                        }
+                        final transaccion = Transaction(
+                          amount: montoDouble,
+                          date: DateTime.now(),
+                          type: _selectTipo,
+                          category: _controlMotivo.text,
+                          description: 'Movimiento manual',
+                          synced: false,
+                        );
+                        await _dbHelper.insertTransaction(transaccion);
+                        // Registrar en gamificación si es gasto hormiga
+                        // Comprobamos si el motivo contiene "hormiga" (case-insensitive)
+                        final categoriaLower = transaccion.category.toLowerCase();
+                        if (categoriaLower.contains('hormiga') ||
+                            categoriaLower == 'gasto' ||
+                            categoriaLower == 'gastos') {
+                          await GamificationService.instance
+                              .registrarGastoHormiga();
+                        }
+                        _cargarTransacciones();
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Movimiento registrado correctamente'),
+                            backgroundColor: AppColors.teal,
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.darkBlue,
+                        foregroundColor: AppColors.white,
+                      ),
+                      child: Text(
+                        'Guardar',
+                        style: GoogleFonts.fredoka(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(
+                        'Cancelar',
+                        style: GoogleFonts.fredoka(
+                          color: AppColors.textMuted,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  'Motivo',
-                  style: GoogleFonts.fredoka(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textDark,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _controlMotivo,
-                  decoration: InputDecoration(
-                    hintText: 'Ej: Comida, Transporte, Estudios',
-                    labelStyle: GoogleFonts.fredoka(
-                      fontSize: 14,
-                      color: AppColors.textDark,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  style: GoogleFonts.fredoka(
-                    fontSize: 14,
-                    color: AppColors.textDark,
-                  ),
-                ),
-                const SizedBox(height: 30),
-                ElevatedButton(
-                  onPressed: () async {
-                    final montoTexto = _controlMonto.text;
-                    if (montoTexto.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Por favor ingrese un monto'),
-                          backgroundColor: AppColors.yellow,
-                        ),
-                      );
-                      return;
-                    }
-                    final montoDouble = double.tryParse(montoTexto);
-                    if (montoDouble == null || montoDouble <= 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Monto inválido'),
-                          backgroundColor: AppColors.yellow,
-                        ),
-                      );
-                      return;
-                    }
-                    final transaccion = Transaction(
-                      amount: montoDouble,
-                      date: DateTime.now(),
-                      type: _selectTipo,
-                      category: _controlMotivo.text,
-                      description: 'Movimiento manual',
-                      synced: false,
-                    );
-                    await _dbHelper.insertTransaction(transaccion);
-                    // Registrar en gamificación si es gasto hormiga
-                    // Comprobamos si el motivo contiene "hormiga" (case-insensitive)
-                    final categoriaLower = transaccion.category.toLowerCase();
-                    if (categoriaLower.contains('hormiga') ||
-                        categoriaLower == 'gasto' ||
-                        categoriaLower == 'gastos') {
-                      await GamificationService.instance.registrarGastoHormiga();
-                    }
-                    _cargarTransacciones();
-                    Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Movimiento registrado correctamente'),
-                        backgroundColor: AppColors.teal,
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.darkBlue,
-                    foregroundColor: AppColors.white,
-                  ),
-                  child: Text(
-                    'Guardar',
-                    style: GoogleFonts.fredoka(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(
-                    'Cancelar',
-                    style: GoogleFonts.fredoka(
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -1451,6 +1527,9 @@ child: Text(
     return ((ingresos - gastos) / ingresos * 100).clamp(0.0, 100.0);
   }
 
+  /// Porcentaje de ahorro real (ingresos - gastos) sobre los ingresos.
+  double get _porcentajeAhorro => _calcularProgresoMetas();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1467,7 +1546,7 @@ actions: [
         onPressed: () => _mostrarFormularioManual(),
         icon: const Icon(Icons.add_rounded, color: AppColors.darkBlue),
         label: Text(
-          'Agregar Movimiento',
+          'Simular Yapeeo',
           style: GoogleFonts.fredoka(
             fontWeight: FontWeight.bold,
             color: AppColors.darkBlue,

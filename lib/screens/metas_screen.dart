@@ -10,10 +10,10 @@ class MetasScreen extends StatefulWidget {
   const MetasScreen({super.key});
 
   @override
-  State<MetasScreen> createState() => _MetasScreenState();
+  State<MetasScreen> createState() => MetasScreenState();
 }
 
-class _MetasScreenState extends State<MetasScreen> {
+class MetasScreenState extends State<MetasScreen> {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
   final GamificationService _gamif = GamificationService.instance;
   late List<Goal> _metas = [];
@@ -28,6 +28,7 @@ class _MetasScreenState extends State<MetasScreen> {
   @override
   void initState() {
     super.initState();
+    _gamif.inicializar();
     _cargarMetas();
     _cargarReclamados();
   }
@@ -46,6 +47,11 @@ class _MetasScreenState extends State<MetasScreen> {
       'metas_reclamadas',
       _reclamados.map((e) => e.toString()).toList(),
     );
+  }
+
+  /// Recarga las metas desde la base de datos.
+  Future<void> recargar() async {
+    await _cargarMetas();
   }
 
   Future<void> _cargarMetas() async {

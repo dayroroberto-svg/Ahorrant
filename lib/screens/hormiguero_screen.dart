@@ -5,8 +5,51 @@ import '../services/gamification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/mascota_animada.dart';
 
-class HormigueroScreen extends StatelessWidget {
+class HormigueroScreen extends StatefulWidget {
   const HormigueroScreen({super.key});
+
+  @override
+  State<HormigueroScreen> createState() => _HormigueroScreenState();
+}
+
+class _HormigueroScreenState extends State<HormigueroScreen> {
+  bool _reclamando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    GamificationService.instance.inicializar();
+  }
+
+  Future<void> _reclamarObjetivoDiario() async {
+    if (_reclamando) return;
+    setState(() => _reclamando = true);
+
+    final gamif = GamificationService.instance;
+    final reclamado = await gamif.tentarObjetivoDiario();
+
+    if (!mounted) {
+      return;
+    }
+    setState(() => _reclamando = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: reclamado ? AppColors.darkBlue : AppColors.expenseRed,
+        content: Text(
+          reclamado
+              ? '🎯 ¡Objetivo diario completado! +10 HS y +20 XP ganados'
+              : '⏳ Ya reclamaste el objetivo diario de hoy. Vuelve mañana.',
+          style: GoogleFonts.fredoka(
+            color: AppColors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -311,39 +354,36 @@ class HormigueroScreen extends StatelessWidget {
                 // Acciones rápidas de gamificación (H10)
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.yellow,
-                    foregroundColor: AppColors.darkBlue,
+                    backgroundColor:
+                        gamif.puedeReclamarObjetivoDiario ? AppColors.yellow : AppColors.softTeal,
+                    foregroundColor: gamif.puedeReclamarObjetivoDiario
+                        ? AppColors.darkBlue
+                        : AppColors.textMuted,
+                    disabledBackgroundColor: AppColors.softTeal,
+                    disabledForegroundColor: AppColors.textMuted,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                     elevation: 0,
                   ),
-                  onPressed: () {
-                    gamif.ganarHormigasoles(10, motivo: 'Objetivo diario');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        backgroundColor: AppColors.darkBlue,
-                        content: Text(
-                          '🎯 ¡Objetivo diario completado! +10 HS y +20 XP ganados',
-                          style: GoogleFonts.fredoka(
-                            color: AppColors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.check_circle_rounded),
+                  onPressed: gamif.puedeReclamarObjetivoDiario && !_reclamando
+                      ? _reclamarObjetivoDiario
+                      : null,
+                  icon: Icon(
+                    gamif.objetivoDiarioReclamadoHoy
+                        ? Icons.check_circle_rounded
+                        : Icons.flag_rounded,
+                  ),
                   label: Text(
-                    'Reclamar Objetivo Diario (+10 HS)',
+                    gamif.objetivoDiarioReclamadoHoy
+                        ? 'Objetivo diario reclamado ✅ (vuelve mañana)'
+                        : 'Reclamar Objetivo Diario (+10 HS)',
                     style: GoogleFonts.fredoka(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
                 const SizedBox(height: 24),

@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/articulo_tienda.dart';
 import '../models/mascota_model.dart';
+import '../models/registro_hormigasoles.dart';
 
 class GamificationService extends ChangeNotifier {
   static final GamificationService instance = GamificationService._internal();
@@ -20,6 +23,27 @@ class GamificationService extends ChangeNotifier {
   final Set<String> _equipados = {};
   EstadoMascota _estado = EstadoMascota.feliz;
 
+  // Totales acumulados (para el modulo Progreso)
+  int _hormigasolesObtenidos = 0;
+  int _hormigasolesGastados = 0;
+  final List<RegistroHormigasoles> _historial = [];
+
+  // Claves de almacenamiento
+  static const String _kHs = 'gamif_hs';
+  static const String _kRacha = 'gamif_racha';
+  static const String _kNivel = 'gamif_nivel';
+  static const String _kXp = 'gamif_xp';
+  static const String _kUltimaReclamacion = 'gamif_ultima_reclamacion';
+  static const String _kUltimoRegistroGasto = 'gamif_ultimo_registro_gasto';
+  static const String _kInventario = 'gamif_inventario';
+  static const String _kEquipados = 'gamif_equipados';
+  static const String _kEstado = 'gamif_estado';
+  static const String _kHsObtenidos = 'gamif_hs_obtenidos';
+  static const String _kHsGastados = 'gamif_hs_gastados';
+  static const String _kHistorial = 'gamif_historial_hs';
+
+  static const int _maximoHistorial = 500;
+
   // Original getters
   int get hormigasoles => _hormigasoles;
   int get rachaDias => _rachaDias;
@@ -28,6 +52,12 @@ class GamificationService extends ChangeNotifier {
   DateTime? get ultimaReclamacion => _ultimaReclamacion;
   DateTime? get ultimoRegistroGasto => _ultimoRegistroGasto;
   bool get inicializado => _inicializado;
+
+  // Totales acumulados e historial
+  int get hormigasolesObtenidos => _hormigasolesObtenidos;
+  int get hormigasolesGastados => _hormigasolesGastados;
+  List<RegistroHormigasoles> get historial =>
+      List.unmodifiable(_historial);
 
   // Original level name
   String get nombreNivel {
@@ -60,9 +90,12 @@ class GamificationService extends ChangeNotifier {
     await _guardar();
     notifyListeners();
   }
+
   acariciarMascota() async {
     _hormigasoles += 2;
     _xp += 5;
+    _hormigasolesObtenidos += 2;
+    _registrarMovimiento(2, 'acariciar a la hormiga');
     _estado = EstadoMascota.animada;
     await _guardar();
     notifyListeners();
@@ -70,10 +103,16 @@ class GamificationService extends ChangeNotifier {
 
   // Original store methods
   Future<bool> comprarArticulo(ArticuloTienda articulo) async {
+    if (_inventario.contains(articulo.id)) {
+      // Ya comprado: no se cobra dos veces
+      return true;
+    }
     if (_hormigasoles < articulo.precio) {
       return false;
     }
     _hormigasoles -= articulo.precio;
+    _hormigasolesGastados += articulo.precio;
+    _registrarMovimiento(-articulo.precio, 'Compra: ${articulo.nombre}');
     _inventario.add(articulo.id);
     _equipados.add(articulo.id);
     _estado = EstadoMascota.animada;
@@ -96,41 +135,38 @@ class GamificationService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // NEW: Daily goal tracking
+  /// Indica si el objetivo diario ya fue reclamado hoy.
+  bool get objetivoDiarioReclamadoHoy {
+    final ahora = DateTime.now();
+    final ultima = _ultimaReclamacion;
+    if (ultima == null) return false;
+    return ultima.year == ahora.year &&
+        ultima.month == ahora.month &&
+        ultima.day == ahora.day;
+  }
+
+  /// El objetivo diario solo se puede reclamar una vez por dia.
+  bool get puedeReclamarObjetivoDiario => !objetivoDiarioReclamadoHoy;
+
   /// Verifica si se puede reclamar el objetivo diario y lo reclama si es posible
   /// Retorna true si se reclamó, false si ya se reclamó hoy
   Future<bool> tentarObjetivoDiario() async {
     final ahora = DateTime.now();
-    final hoy = DateTime(ahora.year, ahora.month, ahora.day);
 
-    // Si nunca se reclamó, permite reclamar
-    if (_ultimaReclamacion == null) {
-      // Reclamar objetivo diario: +10 HS y +20 XP
-      await _sumarHormigasoles(10, motivo: 'Objetivo diario');
-      _ultimaReclamacion = ahora;
-      await _guardar();
-      notifyListeners();
-      return true;
+    // Si ya se reclamo hoy, no permite reclamar nuevamente.
+    if (objetivoDiarioReclamadoHoy) {
+      return false;
     }
 
-    // Si la última reclamación fue en otro día, permite reclamar de nuevo
-    final ultimaFecha =
-        DateTime(_ultimaReclamacion!.year, _ultimaReclamacion!.month,
-            _ultimaReclamacion!.day);
-    final diferenciaDias =
-        ahora.difference(ultimaFecha).inDays;
+    // Se marca de forma sincrona ANTES de esperar, para evitar que dos
+    // pulsaciones rapidas del boton tauren dos veces.
+    _ultimaReclamacion = ahora;
 
-    if (diferenciaDias >= 1) {
-      // Reclamar objetivo diario: +10 HS y +20 XP
-      await _sumarHormigasoles(10, motivo: 'Objetivo diario');
-      _ultimaReclamacion = ahora;
-      await _guardar();
-      notifyListeners();
-      return true;
-    }
-
-    // Ya se reclamó hoy, no permite reclamar nuevamente
-    return false;
+    // Reclamar objetivo diario: +10 HS y +20 XP
+    await _sumarHormigasoles(10, motivo: 'Objetivo diario');
+    await _guardar();
+    notifyListeners();
+    return true;
   }
 
   /// Añade Hormigasoles y XP por registrar un gasto hormiga
@@ -154,7 +190,7 @@ class GamificationService extends ChangeNotifier {
                 _ultimoRegistroGasto!.day)
             : null;
 
-    // Si ya registró hoy, no incrementa la racha (se mantiene)
+    // Si ya registro hoy, no incrementa la racha (se mantiene)
     if (ultimoRegistroHoy != null && ultimoRegistroHoy == hoy) {
       return;
     }
@@ -188,8 +224,23 @@ class GamificationService extends ChangeNotifier {
       _nivelHormiguero = nuevoNivel;
     }
 
+    _hormigasolesObtenidos += cantidad;
+    _registrarMovimiento(cantidad, motivo);
+
     await _guardar();
     notifyListeners();
+  }
+
+  /// Registra un movimiento de Hormigasoles en el historial diario.
+  void _registrarMovimiento(int cantidad, String motivo) {
+    _historial.add(RegistroHormigasoles(
+      fecha: DateTime.now(),
+      cantidad: cantidad,
+      motivo: motivo,
+    ));
+    if (_historial.length > _maximoHistorial) {
+      _historial.removeRange(0, _historial.length - _maximoHistorial);
+    }
   }
 
   // Original public method that other screens use
@@ -202,23 +253,71 @@ class GamificationService extends ChangeNotifier {
     if (_inicializado) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      _hormigasoles = prefs.getInt('gamif_hs') ?? 60;
-      _rachaDias = prefs.getInt('gamif_racha') ?? 0;
-      _nivelHormiguero = prefs.getInt('gamif_nivel') ?? 1;
-      _xp = prefs.getInt('gamif_xp') ?? 0;
+      _hormigasoles = prefs.getInt(_kHs) ?? 60;
+      _rachaDias = prefs.getInt(_kRacha) ?? 0;
+      _nivelHormiguero = prefs.getInt(_kNivel) ?? 1;
+      _xp = prefs.getInt(_kXp) ?? 0;
+      _hormigasolesObtenidos = prefs.getInt(_kHsObtenidos) ?? 0;
+      _hormigasolesGastados = prefs.getInt(_kHsGastados) ?? 0;
 
-      final reklamacion = prefs.getString('gamif_ultima_reclamacion');
-      if (reklamacion != null) {
+      final reklamacion = prefs.getString(_kUltimaReclamacion);
+      if (reklamacion != null && reklamacion.isNotEmpty) {
         _ultimaReclamacion = DateTime.tryParse(reklamacion);
       }
 
-      final ultimoRegistro = prefs.getString('gamif_ultimo_registro_gasto');
-      if (ultimoRegistro != null) {
+      final ultimoRegistro = prefs.getString(_kUltimoRegistroGasto);
+      if (ultimoRegistro != null && ultimoRegistro.isNotEmpty) {
         _ultimoRegistroGasto = DateTime.tryParse(ultimoRegistro);
+      }
+
+      // Inventario de articulos comprados (evita que se pierdan al cerrar la app)
+      _inventario
+        ..clear()
+        ..addAll(prefs.getStringList(_kInventario) ?? const <String>[]);
+
+      _equipados
+        ..clear()
+        ..addAll(prefs.getStringList(_kEquipados) ?? const <String>[]);
+      // Solo se pueden equipar articulos que esten comprados
+      _equipados.removeWhere((id) => !_inventario.contains(id));
+
+      final estadoGuardado = prefs.getString(_kEstado);
+      _estado = EstadoMascota.values.firstWhere(
+        (e) => e.name == estadoGuardado,
+        orElse: () => EstadoMascota.feliz,
+      );
+
+      // Historial de movimientos de Hormigasoles
+      _historial.clear();
+      final historialCrudo = prefs.getString(_kHistorial);
+      if (historialCrudo != null && historialCrudo.isNotEmpty) {
+        try {
+          final lista = jsonDecode(historialCrudo) as List<dynamic>;
+          for (final item in lista) {
+            _historial.add(
+                RegistroHormigasoles.fromMap(Map<String, dynamic>.from(item as Map)));
+          }
+        } catch (e) {
+          debugPrint('No se pudo leer el historial de Hormigasoles: $e');
+        }
+      } else {
+        // Primera vez que se registra el historial: se toma el saldo actual
+        // como "saldo inicial" para que los totales no queden en cero.
+        if (_hormigasolesObtenidos == 0 && _hormigasolesGastados == 0) {
+          _hormigasolesObtenidos = _hormigasoles;
+          if (_hormigasoles > 0) {
+            _historial.add(RegistroHormigasoles(
+              fecha: DateTime.now(),
+              cantidad: _hormigasoles,
+              motivo: 'Saldo inicial',
+            ));
+          }
+        }
       }
 
       _inicializado = true;
       notifyListeners();
+      await _guardar();
     } catch (e) {
       debugPrint('Error al inicializar GamificationService: $e');
     }
@@ -227,14 +326,26 @@ class GamificationService extends ChangeNotifier {
   Future<void> _guardar() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('gamif_hs', _hormigasoles);
-      await prefs.setInt('gamif_racha', _rachaDias);
-      await prefs.setInt('gamif_nivel', _nivelHormiguero);
-      await prefs.setInt('gamif_xp', _xp);
-      await prefs.setString('gamif_ultima_reclamacion',
+      await prefs.setInt(_kHs, _hormigasoles);
+      await prefs.setInt(_kRacha, _rachaDias);
+      await prefs.setInt(_kNivel, _nivelHormiguero);
+      await prefs.setInt(_kXp, _xp);
+      await prefs.setInt(_kHsObtenidos, _hormigasolesObtenidos);
+      await prefs.setInt(_kHsGastados, _hormigasolesGastados);
+      await prefs.setString(_kUltimaReclamacion,
           _ultimaReclamacion?.toIso8601String() ?? '');
-      await prefs.setString('gamif_ultimo_registro_gasto',
+      await prefs.setString(_kUltimoRegistroGasto,
           _ultimoRegistroGasto?.toIso8601String() ?? '');
+
+      // Inventario y estado de la mascota (persisten entre sesiones)
+      await prefs.setStringList(_kInventario, _inventario.toList());
+      await prefs.setStringList(_kEquipados, _equipados.toList());
+      await prefs.setString(_kEstado, _estado.name);
+
+      await prefs.setString(
+        _kHistorial,
+        jsonEncode(_historial.map((r) => r.toMap()).toList()),
+      );
     } catch (e) {
       debugPrint('Error al guardar datos de GamificationService: $e');
     }
